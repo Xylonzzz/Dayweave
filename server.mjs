@@ -1,4 +1,5 @@
 import {registerDevelopment} from './development/routes.mjs';
+import {registerSync} from './sync-server.mjs';
 import {validateState} from './public/validate-state.mjs';
 import {assistantPrompt,applyAssistantOperations} from './assistant.mjs';
 import {runHarness,harnessStatus} from './harness/runtime.mjs';
@@ -48,8 +49,9 @@ const port = Number(process.env.PORT || 3088);
 const origin = process.env.PUBLIC_ORIGIN || `http://localhost:${port}`;
 const app = express();
 app.disable('x-powered-by');
+registerSync(app,{db,get,put});
 app.use((req, res, next) => {
-  res.set({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'" });
+  res.set({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https: http://localhost:* http://127.0.0.1:* http://[::1]:*; worker-src 'self'; frame-ancestors 'none'" });
   if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers.origin && req.headers.origin !== origin) return res.status(403).json({ error: '请求来源不匹配，请检查 PUBLIC_ORIGIN 配置' });
   next();
