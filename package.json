@@ -1,0 +1,30 @@
+{
+  "name": "shixu-student-planner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:ui": "playwright test",
+    "customize": "node development/cli.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "multer": "^2.3.0",
+    "nodemailer": "^10.0.0",
+    "pdf-parse": "^2.4.5",
+    "web-push": "^3.6.7"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}

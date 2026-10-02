@@ -1,0 +1,17 @@
+# 本机 / 已有反向代理：独立使用此文件，不要与 compose.yaml 合并。
+name: shixu
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3088
+      DATA_DIR: /app/data
+    ports:
+      - "127.0.0.1:${LOCAL_PORT:-3088}:3088"
+    volumes:
+      - planner-data:/app/data
+volumes:
+  planner-data:

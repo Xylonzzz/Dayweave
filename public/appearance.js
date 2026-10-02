@@ -1,0 +1,10 @@
+(()=>{
+ const defaults={color:'#2b5747',mode:'system',size:100,font:'sans',motion:true};
+ const fonts={sans:'"Segoe UI","Microsoft YaHei",sans-serif',serif:'"Noto Serif SC","Songti SC",SimSun,serif',mono:'Consolas,"Microsoft YaHei",monospace'};
+ let value;try{value=JSON.parse(localStorage.getItem('shixu-appearance')||'{}');}catch{value={};}
+ const clean=v=>({color:/^#[0-9a-f]{6}$/i.test(v?.color)?v.color:defaults.color,mode:['light','dark','system'].includes(v?.mode)?v.mode:'system',size:[85,100,115,130].includes(Number(v?.size))?Number(v.size):100,font:fonts[v?.font]?v.font:'sans',motion:v?.motion!==false});
+ let settings=clean(value);const media=matchMedia('(prefers-color-scheme: dark)');
+ function apply(){const root=document.documentElement;const dark=settings.mode==='dark'||settings.mode==='system'&&media.matches;root.dataset.theme=dark?'dark':'light';root.dataset.motion=settings.motion?'on':'off';root.style.setProperty('--accent',settings.color);root.style.setProperty('--user-font',fonts[settings.font]);root.style.fontSize=16*settings.size/100+'px';root.style.colorScheme=dark?'dark':'light';const rgb=settings.color.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);root.style.setProperty('--accent-ink',rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722>.179?'#101814':'#ffffff');}
+ window.shixuAppearance={get:()=>({...settings}),set:v=>{settings=clean(v);localStorage.setItem('shixu-appearance',JSON.stringify(settings));apply();},reset:()=>{settings={...defaults};localStorage.removeItem('shixu-appearance');apply();}};
+ media.addEventListener('change',apply);window.addEventListener('storage',e=>{if(e.key==='shixu-appearance'){try{settings=clean(JSON.parse(e.newValue||'{}'));apply();}catch{}}});apply();
+})();

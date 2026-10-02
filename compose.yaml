@@ -1,0 +1,30 @@
+name: shixu
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3088
+      DATA_DIR: /app/data
+    volumes:
+      - planner-data:/app/data
+    expose:
+      - "3088"
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?请在 .env 填写 SITE_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - app
+volumes:
+  planner-data:
+  caddy-data:

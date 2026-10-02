@@ -1,0 +1,5 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": { "builder": "DOCKERFILE" },
+  "deploy": { "startCommand": "node server.mjs", "healthcheckPath": "/", "healthcheckTimeout": 60, "restartPolicyType": "ON_FAILURE", "restartPolicyMaxRetries": 10, "numReplicas": 1 }
+}

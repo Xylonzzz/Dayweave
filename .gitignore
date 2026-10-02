@@ -1,0 +1,10 @@
+node_modules/
+data/
+.env
+*.log
+test-output/
+.npm-cache/
+
+.shixu-development/
+.shixu-development.lock
+.shixu-tools/

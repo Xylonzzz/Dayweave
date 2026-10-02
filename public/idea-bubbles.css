@@ -1,0 +1,44 @@
+#shell{isolation:isolate}
+#idea-bubbles{position:fixed;inset:260px 0 60px;z-index:-1;overflow:hidden;pointer-events:none;user-select:none;contain:strict;container-type:size}
+.idea-bubble{position:absolute;left:0;top:var(--bubble-lane);width:var(--bubble-width);max-width:65vw;padding:var(--bubble-padding);border-radius:28px 28px 28px 9px;background:var(--bubble-fill);box-shadow:inset 0 1px 0 #ffffff24;animation:idea-left var(--bubble-duration) linear infinite;will-change:transform;overflow:hidden}
+.idea-bubble span,.bubble-sample span{color:var(--bubble-text);font-size:var(--bubble-font);line-height:1.7;font-weight:400;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;white-space:pre-wrap}
+@keyframes idea-left{from{transform:translate3d(100vw,var(--bubble-sway),0);opacity:0}8%{opacity:1}92%{opacity:1}to{transform:translate3d(-100%, calc(-1 * var(--bubble-sway)),0);opacity:0}}
+#idea-bubbles.paused .idea-bubble{animation-play-state:paused}
+[data-motion=off] .idea-bubble{animation:none;left:calc(8% + 9% * var(--bubble-index));transform:none}
+#bubble-settings output{font-variant-numeric:tabular-nums;font-weight:400;color:var(--muted);margin-left:8px}
+#bubble-settings input[type=range]{padding:0;accent-color:var(--accent);box-shadow:none;min-height:30px}
+@media(prefers-reduced-motion:reduce){.idea-bubble{animation:none;left:15%;transform:none}.idea-bubble:nth-child(even){left:55%}}
+@media(max-width:620px){.idea-bubble{max-width:60vw}}
+
+.bubble-preview{padding:24px;min-height:130px;border-radius:18px;background:var(--bg);overflow:hidden;margin:18px 0}.bubble-sample{width:var(--bubble-width);max-width:100%;padding:var(--bubble-padding);border-radius:28px 28px 28px 9px;background:var(--bubble-fill)}
+@media(max-width:620px){#idea-bubbles{top:310px;bottom:90px}}
+
+#idea-bubbles[data-placement=foreground]{z-index:30;inset:90px 0 65px}
+#idea-bubbles[data-direction=right] .idea-bubble{animation-name:idea-right}
+#idea-bubbles[data-direction=up] .idea-bubble,#idea-bubbles[data-direction=down] .idea-bubble{top:0;left:var(--bubble-lane)}
+#idea-bubbles[data-direction=up] .idea-bubble{animation-name:idea-up}
+#idea-bubbles[data-direction=down] .idea-bubble{animation-name:idea-down}
+@keyframes idea-right{from{transform:translate3d(-100%,var(--bubble-sway),0);opacity:0}8%,92%{opacity:1}to{transform:translate3d(100vw,calc(-1 * var(--bubble-sway)),0);opacity:0}}
+@keyframes idea-up{from{transform:translate3d(0,100cqh,0);opacity:0}8%,92%{opacity:1}to{transform:translate3d(0,-100%,0);opacity:0}}
+@keyframes idea-down{from{transform:translate3d(0,-100%,0);opacity:0}8%,92%{opacity:1}to{transform:translate3d(0,100cqh,0);opacity:0}}
+[data-motion=off] #idea-bubbles .idea-bubble{animation:none;top:var(--bubble-lane);left:calc(8% + 9% * var(--bubble-index));transform:none}
+@media(prefers-reduced-motion:reduce){#idea-bubbles .idea-bubble{animation:none;top:var(--bubble-lane);left:calc(8% + 9% * var(--bubble-index));transform:none}}
+
+#idea-bubbles{transition:opacity .65s ease}#idea-bubbles.focus-faded{opacity:0}#idea-bubbles.focus-faded .idea-bubble{animation-play-state:paused}
+@media(prefers-reduced-motion:reduce){#idea-bubbles{transition:none}}
+
+/* Keep travel on the outer element and depth on an independent inner surface. */
+.idea-bubble{padding:0;background:none;box-shadow:none;overflow:visible;perspective:850px}
+.bubble-face{position:relative;padding:var(--bubble-padding);border-radius:inherit;background:var(--bubble-fill);isolation:isolate}
+.bubble-preview{perspective:850px;padding:32px}
+.bubble-sample{position:relative;isolation:isolate}
+[data-three-d=on] :is(.bubble-face,.bubble-sample){
+ box-shadow:inset 0 1px 1px rgb(255 255 255 / calc(var(--bubble-shine)*.85)),inset 0 -3px 5px rgb(20 45 40 / calc(var(--bubble-shine)*.25)),0 5px 0 rgb(20 45 40 / calc(var(--bubble-shine)*.12)),0 16px 30px -10px var(--bubble-shadow);
+ transform:rotateX(var(--bubble-tilt)) rotateY(calc(var(--bubble-tilt)*var(--bubble-turn,1)*-1));
+ animation:bubble-rock var(--bubble-rock-time,16s) ease-in-out infinite alternate;
+}
+[data-three-d=on] :is(.bubble-face,.bubble-sample)::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(ellipse at 18% 0%,rgb(255 255 255 / calc(var(--bubble-shine)*.8)),transparent 65%),linear-gradient(135deg,transparent 50%,rgb(0 30 25 / calc(var(--bubble-shine)*.13)));z-index:-1}
+@keyframes bubble-rock{from{transform:translateY(calc(var(--bubble-lift)*-.5)) rotateX(var(--bubble-tilt)) rotateY(calc(var(--bubble-tilt)*var(--bubble-turn,1)*-1))}to{transform:translateY(var(--bubble-lift)) rotateX(calc(var(--bubble-tilt)*-.6)) rotateY(calc(var(--bubble-tilt)*var(--bubble-turn,1)*.7))}}
+#idea-bubbles:is(.paused,.focus-faded) .bubble-face{animation-play-state:paused}
+[data-motion=off] :is(.bubble-face,.bubble-sample){animation:none}
+@media(prefers-reduced-motion:reduce){[data-three-d=on] :is(.bubble-face,.bubble-sample){animation:none}}

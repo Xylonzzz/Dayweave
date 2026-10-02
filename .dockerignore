@@ -1,0 +1,11 @@
+node_modules
+data
+.env
+.git
+test-output
+.npm-cache
+tests
+playwright.config.mjs
+.shixu-tools
+.shixu-development
+.shixu-development.lock
