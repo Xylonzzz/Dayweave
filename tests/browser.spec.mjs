@@ -547,3 +547,31 @@ test('manual sync previews before writes, resolves conflicts, survives response 
   await other.close();await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();await page.screenshot({path:'test-output/manual-sync-mobile.png',fullPage:true});
  }finally{remote.kill();}
 });
+
+
+test('automatic sync is opt-in, shows pending changes, runs from app and pauses on conflict',async({page,context})=>{
+ test.setTimeout(90000);
+ const remote=spawn(process.execPath,['server.mjs'],{stdio:'ignore',windowsHide:true,env:{...process.env,PORT:'3120',PUBLIC_ORIGIN:'http://localhost:3120',HOST:'127.0.0.1',DATA_DIR:`test-output/auto-sync-${Date.now()}`,ADMIN_PASSWORD:'Auto-test-password-123'}});
+ try{
+  for(let i=0;i<200;i++){try{if((await fetch('http://localhost:3120/healthz')).ok)break;}catch{}await new Promise(r=>setTimeout(r,100));}
+  await page.goto('/');await page.getByRole('button',{name:'无需登录，使用本地空间'}).click();await page.getByRole('button',{name:'打开 / 创建本地空间'}).click();await expect(page.locator('#sync-status')).toContainText('仅本地');
+  await page.evaluate(async()=>{const {connectServer}=await import('/sync-client.mjs');await connectServer('http://localhost:3120','student','Auto-test-password-123');});
+  await page.locator('.settings-nav').click();await expect(page.locator('#sync-auto')).not.toBeChecked();await expect(page.locator('#sync-auto')).toBeDisabled();
+  await page.evaluate(async()=>{const {previewSync,applySync}=await import('/sync-client.mjs');await applySync(await previewSync('http://localhost:3120'),'merge',{});});await page.reload();await expect(page.locator('#sync-auto')).toBeEnabled();
+  await page.evaluate(async()=>{const {localAPI}=await import('/local-store.mjs');const s=await localAPI('/api/state');s.tasks.push({id:'automatic-task',title:'自动同步作业',kind:'homework',status:'todo',minutes:30});await localAPI('/api/state',{method:'PUT',body:JSON.stringify(s)});});
+  await expect(page.locator('#sync-pending-count')).toContainText('本地待同步：1 项',{timeout:10000});await page.locator('#sync-auto').check();await expect(page.locator('#sync-auto-status')).toContainText('自动目标');
+  const remoteState=()=>page.evaluate(async()=>{const {readSyncProfile}=await import('/local-store.mjs');const {syncRequest}=await import('/sync-client.mjs');const p=await readSyncProfile('http://localhost:3120');return (await syncRequest(p.origin,'/state',undefined,p.token)).state;});
+  expect((await remoteState()).tasks).toHaveLength(0);
+  await page.locator('nav [data-page="tasks"]').click();await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+  await expect.poll(async()=>(await remoteState()).tasks.length,{timeout:15000}).toBe(1);
+  const revision=(await remoteState()).revision;const unchanged=await page.evaluate(async()=>{const {autoSyncOnce}=await import('/auto-sync.mjs');return (await autoSyncOnce()).kind;});expect(unchanged).toBe('unchanged');expect((await remoteState()).revision).toBe(revision);
+  await page.locator('.settings-nav').click();await page.locator('#sync-auto').uncheck();await expect(page.locator('#sync-auto-status')).toContainText('已关闭');
+  await page.evaluate(async()=>{const {localAPI}=await import('/local-store.mjs');const s=await localAPI('/api/state');s.tasks[0].title='未授权上传的修改';await localAPI('/api/state',{method:'PUT',body:JSON.stringify(s)});});
+  expect(await page.evaluate(async()=>{const {autoSyncOnce}=await import('/auto-sync.mjs');return (await autoSyncOnce()).kind;})).toBe('skipped');expect((await remoteState()).tasks[0].title).toBe('自动同步作业');
+  await page.evaluate(async()=>{const {readSyncProfile}=await import('/local-store.mjs');const {syncRequest}=await import('/sync-client.mjs');const p=await readSyncProfile('http://localhost:3120');const {state}=await syncRequest(p.origin,'/state',undefined,p.token);state.tasks[0].title='服务器另一处修改';await syncRequest(p.origin,'/commit',{deviceId:crypto.randomUUID(),operationId:crypto.randomUUID(),instanceId:p.instanceId,revision:state.revision,data:state},p.token);});
+  await page.locator('#sync-auto').check();expect(await page.evaluate(async()=>{const {autoSyncOnce}=await import('/auto-sync.mjs');return (await autoSyncOnce()).kind;})).toBe('conflict');await expect(page.locator('#sync-auto-status')).toContainText('冲突',{timeout:10000});expect((await remoteState()).tasks[0].title).toBe('服务器另一处修改');
+  await page.locator('#sync-preview').click();await page.locator('[data-sync-choice]').selectOption('local');await page.locator('#sync-confirm').check();await page.locator('#sync-apply').click();await expect(page.locator('#sync-auto-status')).toContainText('最近一次同步已完成');
+  const duplicate=await page.evaluate(async()=>{const {previewSync,retrySync}=await import('/sync-client.mjs');const {prepareSync}=await import('/local-store.mjs');const p=await previewSync('http://localhost:3120');await prepareSync(p.origin,p,p.local);const replies=await Promise.all([retrySync(p.origin),retrySync(p.origin)]);return replies.map(r=>r.revision);});expect(duplicate[0]).toBe(duplicate[1]);
+  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();await page.locator('#manual-sync').screenshot({path:'test-output/auto-sync-mobile.png'});
+ }finally{remote.kill();}
+});

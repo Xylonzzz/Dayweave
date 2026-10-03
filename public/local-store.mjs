@@ -1,6 +1,6 @@
 import {validateState} from './validate-state.mjs';
 import {backupData,makeBackup} from './portability.mjs';
-import {mergeStates,syncData} from './sync-merge.mjs';
+import {mergeStates,syncData,difference,stable} from './sync-merge.mjs';
 const defaults=()=>({revision:0,courses:[],tasks:[],ideas:[],blocks:[],reviews:[],settings:{name:'同学',semesterStart:'2026-08-31',dayStart:'08:00',dayEnd:'22:00',quietStart:'23:00',quietEnd:'07:00',reminderMinutes:[1440,120,30],courseReminder:15,timezone:'Asia/Shanghai'}});
 let dbPromise;
 function database(){return dbPromise??=new Promise((resolve,reject)=>{const req=indexedDB.open('shixu-local',1);req.onupgradeneeded=()=>req.result.createObjectStore('documents');req.onsuccess=()=>resolve(req.result);req.onerror=()=>{dbPromise=null;reject(Error('本地数据库无法打开，请检查浏览器存储权限'));};});}
@@ -11,27 +11,39 @@ export const readLocal=()=>transaction(false,(_,s)=>{if(!s)throw Error('请先�
 async function syncTransaction(origin,write,fn){const db=await database();return new Promise((resolve,reject)=>{
  const tx=db.transaction('documents',write?'readwrite':'readonly'),store=tx.objectStore('documents');let result,error;
  tx.oncomplete=()=>resolve(result);tx.onabort=()=>reject(error||Error('同步记录未保存，请检查本地存储'));tx.onerror=()=>{};
- const values={};let left=3;for(const [name,key] of [['state','state'],['profile','sync:'+origin],['pending','syncPending']]){const req=store.get(key);req.onsuccess=()=>{values[name]=req.result;if(--left===0)try{result=fn(store,values);}catch(e){error=e;tx.abort();}};}
+ const values={};let left=4;for(const [name,key] of [['state','state'],['profile','sync:'+origin],['pending','syncPending'],['auto','autoSync']]){const req=store.get(key);req.onsuccess=()=>{values[name]=req.result;if(--left===0)try{result=fn(store,values);}catch(e){error=e;tx.abort();}};}
  });}
 export const readSyncProfile=origin=>syncTransaction(origin,false,(_,v)=>v.profile||null);
-export async function listSyncProfiles(){const db=await database();return new Promise((resolve,reject)=>{const req=db.transaction('documents').objectStore('documents').getAll();req.onsuccess=()=>resolve(req.result.filter(x=>x?.syncProfile===1).map(({origin,instanceId,lastSync,pending,token})=>({origin,instanceId,lastSync,pending:!!pending,connected:!!token})));req.onerror=()=>reject(req.error);});}
+export async function listSyncProfiles(){const db=await database();return new Promise((resolve,reject)=>{const tx=db.transaction('documents'),store=tx.objectStore('documents'),req=store.getAll(),stateReq=store.get('state');tx.oncomplete=()=>{try{resolve(req.result.filter(x=>x?.syncProfile===1).map(({origin,instanceId,lastSync,pending,token,base})=>({origin,instanceId,lastSync,pending:!!pending,connected:!!token,pendingCount:base?Object.values(difference(base,stateReq.result)).reduce((sum,x)=>sum+x.added+x.changed+x.deleted,0)+(stable(base.settings)===stable(stateReq.result.settings)?0:1):null})));}catch(e){reject(e);}};tx.onabort=()=>reject(tx.error);});}
+export const readAutoSync=()=>syncTransaction('',false,(_,v)=>v.auto||{enabled:false,version:0,status:'off'});
+export const setAutoSync=(origin,enabled)=>syncTransaction(origin,true,(store,{profile,auto})=>{
+ if(enabled&&(!profile?.base||!profile.token||profile.pending))throw Error('请先手动完成一次同步，再开启自动同步');
+ const next={origin:enabled?origin:(auto?.origin||origin),enabled:!!enabled,version:(auto?.version||0)+1,status:enabled?'idle':'off',message:enabled?'将在应用打开且联网时自动合并；有冲突会暂停。':'自动同步已关闭'};store.put(next,'autoSync');return next;
+});
+export const autoSyncStatus=(version,status,message)=>syncTransaction('',true,(store,{auto})=>{if(auto?.enabled&&auto.version===version){auto.status=status;auto.message=message;store.put(auto,'autoSync');}return auto;});
+export const acknowledgeSync=(origin,preview,data,version)=>syncTransaction(origin,true,(store,{state,profile,pending,auto})=>{
+ if(pending||state.revision!==preview.local.revision||profile?.instanceId!==preview.instanceId||!auto?.enabled||auto.origin!==origin||auto.version!==version)return;
+ profile.base=syncData(data);profile.lastChecked=new Date().toISOString();store.put(profile,'sync:'+origin);
+});
 export const connectSyncProfile=(origin,login)=>syncTransaction(origin,true,(store,{profile,pending})=>{
  if(profile?.instanceId&&profile.instanceId!==login.instanceId)throw Error('此地址的服务器身份已改变。请保留本地备份，并移除旧连接后重新连接。');
  const next={...profile,syncProfile:1,origin,instanceId:login.instanceId,token:login.token,deviceId:profile?.deviceId||crypto.randomUUID()};store.put(next,'sync:'+origin);return next;
 });
-export const forgetSyncProfile=origin=>syncTransaction(origin,true,(store,{profile,pending})=>{if(profile?.pending||pending===origin)throw Error('请先完成待确认的同步，再移除此连接');store.delete('sync:'+origin);});
-export const prepareSync=(origin,preview,data)=>syncTransaction(origin,true,(store,{state,profile,pending})=>{
+export const forgetSyncProfile=origin=>syncTransaction(origin,true,(store,{profile,pending,auto})=>{if(profile?.pending||pending===origin)throw Error('请先完成待确认的同步，再移除此连接');store.delete('sync:'+origin);if(auto?.origin===origin)store.put({...auto,enabled:false,status:'off',version:auto.version+1},'autoSync');});
+export const prepareSync=(origin,preview,data,autoVersion)=>syncTransaction(origin,true,(store,{state,profile,pending,auto})=>{
+ if(autoVersion!==undefined&&(!auto?.enabled||auto.origin!==origin||auto.version!==autoVersion||['conflict','attention'].includes(auto.status)))throw Error('自动同步设置已改变，本次未发送');
  if(pending)throw Error('请先完成 '+pending+' 上的待确认同步，再同步其他服务器');
  if(!profile?.token||profile.instanceId!==preview.instanceId||state.revision!==preview.local.revision)throw Error('本地数据或连接已变化，请重新预览');
  const operation={deviceId:profile.deviceId,operationId:crypto.randomUUID(),instanceId:profile.instanceId,revision:preview.remote.revision,data:syncData(data)};
  profile.pending={operation,local:state};store.put(profile,'sync:'+origin);store.put(origin,'syncPending');return operation;
 });
 export const clearSyncPending=(origin,operationId)=>syncTransaction(origin,true,(store,{profile,pending})=>{if(profile?.pending?.operation.operationId!==operationId)throw Error('同步记录已变化');delete profile.pending;store.put(profile,'sync:'+origin);if(pending===origin)store.delete('syncPending');});
-export const finishSync=(origin,response)=>syncTransaction(origin,true,(store,{state,profile,pending})=>{
+export const finishSync=(origin,response)=>syncTransaction(origin,true,(store,{state,profile,pending,auto})=>{
+ if(profile?.instanceId===response.instanceId&&!profile.pending&&profile.lastOperationId===response.operationId)return state;
  const previous=profile?.pending;if(!previous||previous.operation.operationId!==response.operationId||profile.instanceId!==response.instanceId)throw Error('同步回执与本地记录不匹配，请重新连接检查');
  const remote=syncData(response.state);let data=remote;
  if(state.revision!==previous.local.revision){const merged=mergeStates(syncData(previous.local),syncData(state),remote);const choices=Object.fromEntries(merged.conflicts.map(c=>[c.key,'local']));data=mergeStates(syncData(previous.local),syncData(state),remote,choices).data;}
- const next=validateState({...data,revision:state.revision+1});store.put(state,'previous');store.put(next,'state');profile.base=remote;profile.lastSync=new Date().toISOString();delete profile.pending;store.put(profile,'sync:'+origin);if(pending===origin)store.delete('syncPending');return next;
+ const next=validateState({...data,revision:state.revision+1});store.put(state,'previous');store.put(next,'state');profile.base=remote;profile.lastSync=new Date().toISOString();profile.lastOperationId=response.operationId;delete profile.pending;store.put(profile,'sync:'+origin);if(pending===origin)store.delete('syncPending');if(auto?.enabled&&auto.origin===origin)store.put({...auto,status:'idle',message:'最近一次同步已完成'},'autoSync');return next;
 });
 async function writeLocal(next,revision,restore=false){validateState(next);return transaction(true,(store,current)=>{if(!current||current.revision!==revision)throw Error('其他本地窗口已更新数据，请刷新后重试');if(restore)store.put(current,'previous');next.revision=current.revision+1;store.put(next,'state');return next;});}
 export async function localAPI(url,options={}){
