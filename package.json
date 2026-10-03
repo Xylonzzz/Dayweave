@@ -8,7 +8,8 @@
     "test": "node --test tests/*.test.mjs",
     "test:ui": "playwright test",
     "customize": "node development/cli.mjs",
-    "backup:local": "node backup-local.mjs"
+    "backup:local": "node backup-local.mjs",
+    "build:windows": "node desktop/build.mjs"
   },
   "engines": {
     "node": ">=24"

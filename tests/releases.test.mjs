@@ -51,3 +51,6 @@ test('failed health check automatically starts old version; incompatible release
  await assert.rejects(supervisor.switchTo(id),/退出|超时/);assert.equal(runtimeState(root).phase,'running');assert.match(runtimeState(root).message,/已回到原版本/);assert.equal(await(await fetch(`http://127.0.0.1:${port}/app.js`)).text(),'original');
  const other=candidate(root,{'server.mjs':fixtureServer+'\n// backend changed'}),bad=stageCandidate(root,root,other.folder);markPreview(root,bad);const pid=supervisor.child.pid;await assert.rejects(supervisor.switchTo(bad),/后端/);assert.equal(supervisor.child.pid,pid);
 });
+test('unexpected service exit notifies its desktop owner instead of leaving a live control loop',async t=>{
+ const {root,port,data,cleanup}=await fixture(t),supervisor=new VersionSupervisor(root,{env:{...process.env,PORT:String(port),DATA_DIR:data},healthTimeout:2500});cleanup.push(()=>supervisor.stop());let notified=false;supervisor.onUnexpectedExit=()=>{notified=true;};await supervisor.start();const child=supervisor.child;await new Promise(resolve=>{child.once('exit',resolve);child.kill();});assert.equal(notified,true);assert.equal(runtimeState(root).phase,'failed');
+});

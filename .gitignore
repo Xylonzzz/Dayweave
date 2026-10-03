@@ -9,3 +9,4 @@ test-output/
 .shixu-development.lock
 .shixu-tools/
 .shixu-releases/
+dist/

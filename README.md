@@ -2,6 +2,8 @@
 
 面向 Windows 和 Android 的个人时间规划网页。课程、作业、项目任务与灵感统一保存到服务端。支持自己的电脑/NAS、腾讯云、阿里云及其他 Node.js/Docker 主机。尚未部署到公网。
 
+Windows 已有自带运行环境的 EXE 启动器测试包：原生启动窗口打开浏览器界面，源码和个人数据单独保存。构建命令 `npm run build:windows`；迁移与使用见 [Windows 桌面版](docs/WINDOWS_DESKTOP.md)。
+
 ## 本地启动
 
 需要 Node.js 24。双击 `start.cmd`，或执行 `npm install`、`npm start`，访问 http://localhost:3088 。

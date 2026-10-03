@@ -19,7 +19,7 @@ export class VersionSupervisor{
   // All release copies share the installed tools and job history, never a nested download directory.
   if(!env.HARNESS_ROOT&&fs.existsSync(path.join(this.root,'.shixu-tools','harness-revision.txt')))env.HARNESS_ROOT=path.join(this.root,'.shixu-tools/source/deepseek-harness-47f943859bef60e4160492346772ded9b24f765a');
   const child=spawn(process.execPath,[path.join(source,'server.mjs')],{cwd:source,env,windowsHide:true,stdio:['ignore',out,err,'ipc']});this.child=child;fs.closeSync(out);fs.closeSync(err);let spawnError;child.once('error',e=>{spawnError=e;});
-  child.once('exit',()=>{if(this.child===child&&!this.busy){this.save({phase:'failed',message:'运行服务已退出，请通过桌面开关重新启动；查看 server-error.log 获取原因。'});process.exitCode=1;}});
+  child.once('exit',()=>{if(this.child===child&&!this.busy){this.save({phase:'failed',message:'运行服务已退出，请通过桌面开关重新启动；查看 server-error.log 获取原因。'});this.onUnexpectedExit?.();}});
   child.on('message',message=>{if(this.child!==child||this.busy||message?.type!=='shixu-switch')return;setTimeout(()=>this.switchTo(message.id,{rollback:message.rollback===true}).catch(()=>{}),500);});
   const deadline=Date.now()+this.timeout;
   while(Date.now()<deadline){
@@ -60,7 +60,9 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1]
  fs.mkdirSync(releaseHome(root),{recursive:true});const lock=path.join(releaseHome(root),'supervisor.lock');
  if(fs.existsSync(lock)){const pid=Number(fs.readFileSync(lock,'utf8'));let alive=false;try{process.kill(pid,0);alive=true;}catch{}if(alive)throw Error('版本管理服务已运行');fs.unlinkSync(lock);}
  const fd=fs.openSync(lock,'wx');fs.writeFileSync(fd,String(process.pid));fs.closeSync(fd);
- const supervisor=new VersionSupervisor(root);const close=async()=>{await supervisor.stop().catch(()=>{});try{fs.unlinkSync(lock);}catch{}process.exit();};
+ let controlTimer;const supervisor=new VersionSupervisor(root,{healthTimeout:process.env.SHIXU_DESKTOP_INSTANCE?60000:15000});const close=async()=>{clearInterval(controlTimer);await supervisor.stop().catch(()=>{});try{fs.unlinkSync(lock);}catch{}process.exit();};
+ supervisor.onUnexpectedExit=()=>{process.exitCode=1;void close();};
+ if(process.env.SHIXU_CONTROL_FILE&&process.env.SHIXU_CONTROL_TOKEN)controlTimer=setInterval(()=>{try{const file=process.env.SHIXU_CONTROL_FILE;if(fs.existsSync(file)&&JSON.parse(fs.readFileSync(file,'utf8')).token===process.env.SHIXU_CONTROL_TOKEN){fs.unlinkSync(file);void close();}}catch{}},500);
  process.on('SIGINT',close);process.on('SIGTERM',close);process.on('exit',()=>{try{fs.unlinkSync(lock);}catch{}});
  try{await supervisor.start();}catch(error){console.error(error.message);await close();}
 }

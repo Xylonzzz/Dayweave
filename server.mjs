@@ -57,7 +57,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: '2mb' }));
-app.get('/healthz', (req, res) => { db.prepare('SELECT 1').get(); res.json({ app:'shixu', status:'ok', backupVersion:1, bootId:process.env.SHIXU_BOOT_ID, version:process.env.SHIXU_VERSION_ID||'source', preview:process.env.SHIXU_PREVIEW==='1' }); });
+app.get('/healthz', (req, res) => { db.prepare('SELECT 1').get(); res.json({ app:'shixu', status:'ok', backupVersion:1, bootId:process.env.SHIXU_BOOT_ID, version:process.env.SHIXU_VERSION_ID||'source', desktopInstance:process.env.SHIXU_DESKTOP_INSTANCE, preview:process.env.SHIXU_PREVIEW==='1' }); });
 const sessionCookie=process.env.SHIXU_PREVIEW==='1'?'shixu_preview':'session';
 const sessions = req => { const token = new RegExp('(?:^|;\\s*)'+sessionCookie+'=([^;]+)').exec(req.headers.cookie || '')?.[1]; return token && db.prepare('SELECT * FROM sessions WHERE token=? AND expires>?').get(crypto.createHash('sha256').update(token).digest('hex'), Date.now()); };
 const attempts = new Map();

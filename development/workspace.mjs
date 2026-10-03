@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const directories=new Set(['public','harness','tests','docs','development']);
-const extensions=new Set(['.mjs','.js','.css','.html','.json','.md','.txt','.svg','.png','.webmanifest']);
+const directories=new Set(['public','harness','tests','docs','development','desktop']);
+const extensions=new Set(['.mjs','.js','.css','.html','.json','.md','.txt','.svg','.png','.ico','.webmanifest','.ps1','.cs']);
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 export function safePath(root,name){
  if(typeof name!=='string'||!name||name.includes('\\')||name.includes(':')||name.includes('\0'))throw Error('无效文件路径');
@@ -49,7 +49,7 @@ export function changeDetails(work){return changes(work).map(item=>{
  const offset=Math.max(0,first-800);return {...item,offset,beforeContent:before.slice(offset,offset+12000),afterContent:after.slice(offset,offset+12000),totalBefore:before.length,totalAfter:after.length,truncated:Math.max(before.length,after.length)>offset+12000};
 });}
 export function writeSource(work,name,content){
- if(['package.json','package-lock.json'].includes(name)||name.startsWith('harness/')||name.startsWith('development/'))throw Error('本版本不自动修改依赖或 Harness 执行边界');
+ if(['package.json','package-lock.json'].includes(name)||name.startsWith('harness/')||name.startsWith('development/')||name.startsWith('desktop/'))throw Error('本版本不自动修改依赖或 Harness 执行边界');
  if(typeof content!=='string'||Buffer.byteLength(content)>256000||content.includes('\0'))throw Error('文件内容必须是小于 256 KB 的文本');
  const destination=safePath(work.candidate,name);fs.mkdirSync(path.dirname(destination),{recursive:true});fs.writeFileSync(destination,content);return {saved:name};
 }
