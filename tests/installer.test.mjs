@@ -1,0 +1,28 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {spawnSync} from 'node:child_process';
+test('Windows installer verifies payload, creates real shortcuts, preserves modified files and user data', {skip:process.platform!=='win32'},()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'shixu-install-'));
+ const bundle=path.join(root,'bundle'),install=path.join(root,'programs'),desktop=path.join(root,'desktop'),menu=path.join(root,'menu');
+ fs.mkdirSync(path.join(bundle,'desktop'),{recursive:true});
+ fs.copyFileSync(new URL('../desktop/install.ps1',import.meta.url),path.join(bundle,'desktop/install.ps1'));
+ fs.writeFileSync(path.join(bundle,'时序.exe'),'fixture');fs.writeFileSync(path.join(bundle,'modified.txt'),'original');
+ const files=['desktop/install.ps1','时序.exe','modified.txt'].map(name=>({path:name,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(bundle,name))).digest('hex')}));
+ fs.writeFileSync(path.join(bundle,'package-manifest.json'),JSON.stringify({id:'Shixu-test',files}));
+ const run=action=>spawnSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(bundle,'desktop/install.ps1'),'-Action',action,'-InstallRoot',install,'-DesktopDirectory',desktop,'-MenuDirectory',menu],{encoding:'utf8',windowsHide:true});
+ fs.writeFileSync(path.join(bundle,'时序.exe'),'corrupted');let r=run('Install');assert.notEqual(r.status,0);assert.ok(!fs.existsSync(install));
+ fs.writeFileSync(path.join(bundle,'时序.exe'),'fixture');r=run('Install');assert.equal(r.status,0,r.stdout+r.stderr);
+ const target=path.join(install,'Shixu-test');assert.ok(fs.existsSync(path.join(desktop,'时序 (Installed).lnk')));
+ assert.notEqual(run('Install').status,0,'reinstall must not overwrite');
+ fs.writeFileSync(path.join(target,'modified.txt'),'user changed');fs.writeFileSync(path.join(target,'unknown.txt'),'keep');
+ const profile=path.join(root,'profile');fs.mkdirSync(profile);fs.writeFileSync(path.join(profile,'data.txt'),'private');
+ r=run('Uninstall');assert.equal(r.status,0,r.stdout+r.stderr);
+ assert.ok(!fs.existsSync(path.join(target,'时序.exe')));assert.ok(!fs.existsSync(path.join(desktop,'时序 (Installed).lnk')));
+ assert.equal(fs.readFileSync(path.join(target,'modified.txt'),'utf8'),'user changed');assert.equal(fs.readFileSync(path.join(target,'unknown.txt'),'utf8'),'keep');assert.equal(fs.readFileSync(path.join(profile,'data.txt'),'utf8'),'private');
+ // Only this randomly created test directory is owned by this test.
+ fs.rmSync(root,{recursive:true,force:true});
+});

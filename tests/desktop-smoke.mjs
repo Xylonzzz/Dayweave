@@ -1,6 +1,6 @@
 // Runs the built application using only its bundled runtime, with an isolated desktop profile.
 import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {spawn} from 'node:child_process';import {chromium} from '@playwright/test';
-const root=path.resolve(import.meta.dirname,'..'),bundle=JSON.parse(fs.readFileSync(path.join(root,'dist/latest.json'))).output;
+const root=path.resolve(import.meta.dirname,'..'),bundle=process.env.SHIXU_TEST_BUNDLE||JSON.parse(fs.readFileSync(path.join(root,'dist/latest.json'))).output;
 const profile=path.join(root,'test-output','desktop-smoke-'+Date.now()),env={...process.env,SHIXU_DESKTOP_HOME:profile,SHIXU_DESKTOP_PORT:'3194',PATH:process.env.WINDIR+'\\System32;'+process.env.WINDIR+';'+process.env.WINDIR+'\\System32\\WindowsPowerShell\\v1.0'};
 const run=action=>new Promise((resolve,reject)=>{const child=spawn(path.join(bundle,'runtime/node.exe'),[path.join(bundle,'desktop/bootstrap.mjs'),action],{env,cwd:bundle,windowsHide:true,stdio:['ignore','pipe','pipe']});let output='',error='';child.stdout.on('data',x=>output+=x);child.stderr.on('data',x=>error+=x);child.once('error',reject);child.once('close',code=>{try{const data=JSON.parse(output);if(code||data.error)throw Error(data.error||error);resolve(data);}catch(e){reject(e);}});});
 let browser;
