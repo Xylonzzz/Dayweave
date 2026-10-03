@@ -497,6 +497,27 @@ test('customization workbench submits request, reloads history and displays revi
 });
 
 
+test('release workbench opens isolated preview and requires explicit activation and restore',async({page})=>{
+ await page.goto('/');await page.getByRole('textbox',{name:'密码',exact:true}).fill('UI-test-password-123');await page.getByRole('button',{name:/进入我的空间/}).click();await expect(page.locator('#nav')).toBeVisible();
+ let preview=null,activated=false,restored=false;
+ const job={id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',request:'前端候选试用',createdAt:new Date().toISOString(),phase:'ready',events:[],review:{approved:true,summary:'fixture review'},changes:[]};
+ await page.route('**/api/development/**',async route=>{
+  const pathname=new URL(route.request().url()).pathname;
+  if(pathname.endsWith('/status'))return route.fulfill({json:{allowed:true,available:true,managed:true,harness:{available:true},docker:{available:true}}});
+  if(pathname.endsWith('/runtime/restore')){expect(route.request().postDataJSON().confirm).toBe(true);restored=true;return route.fulfill({status:202,json:{message:'恢复已开始'}});}
+  if(pathname.endsWith('/runtime'))return route.fulfill({json:{managed:true,local:true,phase:'running',previous:'previous',message:'当前运行版本已就绪'}});
+  if(pathname.endsWith('/jobs'))return route.fulfill({json:[job]});
+  if(pathname.endsWith('/preview')){preview={healthy:true,url:'http://preview-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.localhost:3199',password:'preview-fixture',expiresAt:Date.now()+1800000};return route.fulfill({json:{preview}});}
+  if(pathname.endsWith('/activate')){expect(route.request().postDataJSON().confirm).toBe(true);activated=true;return route.fulfill({status:202,json:{message:'切换已开始'}});}
+  return route.fulfill({json:{...job,preview}});
+ });
+ await page.goto('/#customize');await expect(page.locator('#dev-runtime-status')).toContainText('已就绪');await expect(page.getByRole('button',{name:'整合此候选版本'})).toHaveCount(0);
+ await page.getByRole('button',{name:'启动试运行',exact:true}).click();await expect(page.getByRole('link',{name:'打开试运行版本 ↗'})).toHaveAttribute('href','http://preview-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.localhost:3199');
+ const activate=page.getByRole('button',{name:'切换使用此版本'});await expect(activate).toBeDisabled();await page.locator('#dev-activate-confirm').check();await activate.click();expect(activated).toBe(true);
+ const restore=page.getByRole('button',{name:'恢复上一个版本',exact:true});await expect(restore).toBeDisabled();await page.locator('#dev-restore-confirm').check();await restore.click();expect(restored).toBe(true);
+ await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await page.screenshot({path:'test-output/releases-mobile.png',fullPage:true});
+});
+
 test('customization setup requires consent, preserves progress on reload and resumes after restart',async({page})=>{
  let setup={allowed:true,supported:true,phase:'idle',message:'尚未运行配置向导',events:[],location:'C:/Shixu/.shixu-tools'};
  await page.goto('/');await page.getByRole('textbox',{name:'密码',exact:true}).fill('UI-test-password-123');await page.getByRole('button',{name:/进入我的空间/}).click();await expect(page.locator('#nav')).toBeVisible();

@@ -57,8 +57,9 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: '2mb' }));
-app.get('/healthz', (req, res) => { db.prepare('SELECT 1').get(); res.json({ app:'shixu', status:'ok', backupVersion:1 }); });
-const sessions = req => { const token = /(?:^|;\s*)session=([^;]+)/.exec(req.headers.cookie || '')?.[1]; return token && db.prepare('SELECT * FROM sessions WHERE token=? AND expires>?').get(crypto.createHash('sha256').update(token).digest('hex'), Date.now()); };
+app.get('/healthz', (req, res) => { db.prepare('SELECT 1').get(); res.json({ app:'shixu', status:'ok', backupVersion:1, bootId:process.env.SHIXU_BOOT_ID, version:process.env.SHIXU_VERSION_ID||'source', preview:process.env.SHIXU_PREVIEW==='1' }); });
+const sessionCookie=process.env.SHIXU_PREVIEW==='1'?'shixu_preview':'session';
+const sessions = req => { const token = new RegExp('(?:^|;\\s*)'+sessionCookie+'=([^;]+)').exec(req.headers.cookie || '')?.[1]; return token && db.prepare('SELECT * FROM sessions WHERE token=? AND expires>?').get(crypto.createHash('sha256').update(token).digest('hex'), Date.now()); };
 const attempts = new Map();
 app.post('/api/login', (req, res) => {
   const ip = req.socket.remoteAddress; const entry = attempts.get(ip) || { count: 0, at: Date.now() };
@@ -70,17 +71,17 @@ app.post('/api/login', (req, res) => {
   attempts.delete(ip); const token = crypto.randomBytes(32).toString('hex');
   db.prepare('DELETE FROM sessions WHERE expires<?').run(Date.now());
   db.prepare('INSERT INTO sessions VALUES (?,?)').run(crypto.createHash('sha256').update(token).digest('hex'), Date.now() + 30 * 86400000);
-  res.cookie('session', token, { httpOnly: true, sameSite: 'strict', secure: origin.startsWith('https:'), maxAge: 30 * 86400000, path: '/' }); res.json({ ok: true });
+  res.cookie(sessionCookie, token, { httpOnly: true, sameSite: 'strict', secure: origin.startsWith('https:'), maxAge: 30 * 86400000, path: '/' }); res.json({ ok: true });
 });
 app.use('/api', (req, res, next) => sessions(req) ? next() : res.status(401).json({ error: '请先登录' }));
-registerDevelopment(app,{root,harnessRoot:process.env.HARNESS_ROOT,mode:process.env.SHIXU_DEVELOPMENT||'local',getProvider:id=>{const p=get('providers',[]).find(p=>p.id===id);if(!p)throw Error('请选择已配置的 AI 接口');return {provider:{name:p.name,model:p.model,format:p.format,baseUrl:p.baseUrl},key:unseal(p.key,masterKey)};}});
-app.post('/api/logout', (req, res) => { const s = sessions(req); if (s) db.prepare('DELETE FROM sessions WHERE token=?').run(s.token); res.clearCookie('session'); res.json({ ok: true }); });
+registerDevelopment(app,{root,installation:process.env.SHIXU_INSTALL_ROOT||root,harnessRoot:process.env.HARNESS_ROOT,mode:process.env.SHIXU_DEVELOPMENT||'local',getProvider:id=>{const p=get('providers',[]).find(p=>p.id===id);if(!p)throw Error('请选择已配置的 AI 接口');return {provider:{name:p.name,model:p.model,format:p.format,baseUrl:p.baseUrl},key:unseal(p.key,masterKey)};}});
+app.post('/api/logout', (req, res) => { const s = sessions(req); if (s) db.prepare('DELETE FROM sessions WHERE token=?').run(s.token); res.clearCookie(sessionCookie); res.json({ ok: true }); });
 app.post('/api/password', (req, res) => {
   const a = get('account');
   if (!crypto.timingSafeEqual(crypto.scryptSync(String(req.body.current || '').slice(0,1024), a.salt, 64), Buffer.from(a.hash, 'hex'))) return res.status(400).json({ error: '原密码不正确' });
   if (typeof req.body.password !== 'string' || req.body.password.length < 12 || req.body.password.length > 128) return res.status(400).json({ error: '新密码需要 12–128 个字符' });
   a.salt = crypto.randomBytes(16).toString('hex'); a.hash = crypto.scryptSync(req.body.password, a.salt, 64).toString('hex'); put('account', a);
-  db.prepare('DELETE FROM sessions').run(); res.clearCookie('session'); res.json({ ok: true });
+  db.prepare('DELETE FROM sessions').run(); res.clearCookie(sessionCookie); res.json({ ok: true });
 });
 app.get('/api/state', (req, res) => res.json(get('state')));
 app.put('/api/state', (req, res) => {

@@ -12,3 +12,4 @@
 .dev-setup-box{padding:18px;margin-top:16px;border:1px solid var(--line);border-radius:16px;overflow-wrap:anywhere}.dev-setup-box details{margin:12px 0}.dev-setup-box label{display:flex;align-items:flex-start;gap:10px;margin:16px 0}.dev-setup-box input[type=checkbox]{width:20px;height:20px;flex-shrink:0;margin-top:3px}.dev-setup-box li{margin:8px 0}
 
 #manual-sync{overflow-wrap:anywhere}#manual-sync details{margin:12px 0}#manual-sync .sync-conflict{padding:14px;margin:12px 0;border:1px solid var(--line);border-radius:12px}#manual-sync input[type=checkbox]{width:20px;vertical-align:middle}#manual-sync h4{margin-top:20px}
+.preview-banner{position:sticky;top:0;z-index:1000;padding:12px 20px;background:#604614;color:#fff;text-align:center;font-size:16px;}

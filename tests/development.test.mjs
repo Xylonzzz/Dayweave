@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {prepare,safePath,writeSource,digest,integrate,rollback} from '../development/workspace.mjs';
+import {prepare,safePath,writeSource,replaceSource,searchSource,changeDetails,digest,integrate,rollback} from '../development/workspace.mjs';
 import {customize} from '../development/customize.mjs';
 
 function fixture(t){const folder=fs.mkdtempSync(path.join(os.tmpdir(),'shixu-dev-test-'));t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));const root=path.join(folder,'source');fs.mkdirSync(root);fs.writeFileSync(path.join(root,'server.mjs'),'export const value=1;');fs.mkdirSync(path.join(root,'data'));fs.writeFileSync(path.join(root,'data','secret.key'),'private');fs.writeFileSync(path.join(root,'.env'),'private');fs.writeFileSync(path.join(root,'credentials.json'),'private');return {folder,root};}
@@ -22,6 +22,14 @@ test('automatic integration and rollback preserve unrelated data',t=>{
  integrate(root,home,work,JSON.stringify(digest(work.candidate)));
  assert.match(fs.readFileSync(path.join(root,'server.mjs'),'utf8'),/value=2/);
  rollback(root,home);assert.match(fs.readFileSync(path.join(root,'server.mjs'),'utf8'),/value=1/);assert.ok(!fs.existsSync(path.join(root,'public/new.js')));assert.equal(fs.readFileSync(path.join(root,'data/secret.key'),'utf8'),'private');
+});
+test('partial source edits require one exact match and preserve protected paths',t=>{
+ const {root,folder}=fixture(t),work=prepare(root,path.join(folder,'replace'));
+ replaceSource(work,'server.mjs','value=1','value=2');assert.match(fs.readFileSync(path.join(work.candidate,'server.mjs'),'utf8'),/value=2/);
+ assert.equal(searchSource(work,'server.mjs','value=2').matches.length,1);assert.equal(searchSource(work,'server.mjs','absent').matches.length,0);assert.throws(()=>searchSource(work,'../data/secret.key','private'));
+ assert.match(changeDetails(work)[0].afterContent,/value=2/);
+ assert.throws(()=>replaceSource(work,'server.mjs','missing','bad'),/精确/);writeSource(work,'public/a.js','same same');assert.throws(()=>replaceSource(work,'public/a.js','same','other'),/一次/);
+ fs.mkdirSync(path.join(work.candidate,'development'));fs.writeFileSync(path.join(work.candidate,'development/test.mjs'),'protected');assert.throws(()=>replaceSource(work,'development/test.mjs','protected','bad'),/不自动修改/);
 });
 test('concurrent source edits block integration and later edits block rollback',t=>{
  const {folder,root}=fixture(t),home=path.join(folder,'job'),work=prepare(root,home);writeSource(work,'server.mjs','export const value=2;');

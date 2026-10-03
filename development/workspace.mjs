@@ -43,10 +43,28 @@ export function changes(work){
  const current=digest(work.candidate);
  return [...new Set([...Object.keys(work.baseline),...Object.keys(current)])].sort().filter(name=>work.baseline[name]!==current[name]).map(name=>({path:name,before:work.baseline[name]||null,after:current[name]||null}));
 }
+export function changeDetails(work){return changes(work).map(item=>{
+ const before=item.before?fs.readFileSync(safePath(work.original,item.path),'utf8'):'',after=item.after?fs.readFileSync(safePath(work.candidate,item.path),'utf8'):'';
+ let first=0;while(first<before.length&&first<after.length&&before[first]===after[first])first++;
+ const offset=Math.max(0,first-800);return {...item,offset,beforeContent:before.slice(offset,offset+12000),afterContent:after.slice(offset,offset+12000),totalBefore:before.length,totalAfter:after.length,truncated:Math.max(before.length,after.length)>offset+12000};
+});}
 export function writeSource(work,name,content){
  if(['package.json','package-lock.json'].includes(name)||name.startsWith('harness/')||name.startsWith('development/'))throw Error('本版本不自动修改依赖或 Harness 执行边界');
  if(typeof content!=='string'||Buffer.byteLength(content)>256000||content.includes('\0'))throw Error('文件内容必须是小于 256 KB 的文本');
  const destination=safePath(work.candidate,name);fs.mkdirSync(path.dirname(destination),{recursive:true});fs.writeFileSync(destination,content);return {saved:name};
+}
+export function replaceSource(work,name,before,after){
+ if(typeof before!=='string'||!before||typeof after!=='string')throw Error('局部替换需要非空原文和替换内容');
+ const content=fs.readFileSync(safePath(work.candidate,name),'utf8'),offset=content.indexOf(before);
+ if(offset<0||content.indexOf(before,offset+1)>=0)throw Error('原文必须精确且只出现一次；请重新读取并增加上下文');
+ return writeSource(work,name,content.slice(0,offset)+after+content.slice(offset+before.length));
+}
+export function searchSource(work,name,query){
+ if(typeof query!=='string'||!query||query.length>1000)throw Error('请输入 1～1000 字的搜索原文');
+ const file=safePath(work.candidate,name);if(fs.statSync(file).size>1000000)throw Error('文件过大');
+ const content=fs.readFileSync(file,'utf8'),matches=[];let offset=0;
+ while(matches.length<20){const index=content.indexOf(query,offset);if(index<0)break;matches.push({offset:index,line:content.slice(0,index).split('\n').length,content:content.slice(Math.max(0,index-300),index+query.length+500)});offset=index+query.length;}
+ return {path:name,total:content.length,matches,limit:20};
 }
 // Optimistic whole-source conflict check, backup, then apply synchronously under a host lock.
 export function integrate(root,home,work,verified){

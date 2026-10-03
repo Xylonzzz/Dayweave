@@ -7,7 +7,7 @@ const ready=async()=>{try{const r=await fetch(url+'/healthz',{signal:AbortSignal
 if(!await ready()){
  fs.mkdirSync(path.join(root,'data'),{recursive:true});
  const out=fs.openSync(path.join(root,'data','server-out.log'),'a'),err=fs.openSync(path.join(root,'data','server-error.log'),'a');
- const server=spawn(process.execPath,['server.mjs'],{cwd:root,detached:true,windowsHide:true,stdio:['ignore',out,err]});
+ const server=spawn(process.execPath,['development/supervisor.mjs'],{cwd:root,detached:true,windowsHide:true,stdio:['ignore',out,err]});
  server.on('error',e=>console.error('启动失败：'+e.message));server.unref();fs.closeSync(out);fs.closeSync(err);
 }
 let started=false;

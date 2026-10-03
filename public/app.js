@@ -409,6 +409,7 @@ async function harnessChat(url,options){
  try{while(true){const {value,done}=await reader.read();buffer+=decoder.decode(value,{stream:!done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines){if(!line.trim())continue;const event=JSON.parse(line);if(event.type==='error')throw Error(event.error);if(event.type==='result')result=event.data;if(event.type==='status'&&$('#harness-progress'))$('#harness-progress').textContent=event.text;if(event.type==='text'&&$('#harness-stream')){const output=$('#harness-stream');output.hidden=false;output.textContent+=event.text;}}if(done)break;}if(!result)throw Error('Harness 连接结束但未确认保存，请刷新核对');return result;}finally{reader.releaseLock();}
 }
 await load();
+fetch('/healthz').then(r=>r.json()).then(info=>{if(info.preview){const banner=document.createElement('div');banner.className='preview-banner';banner.setAttribute('role','status');banner.textContent='试运行空间 · 使用独立测试数据 · 不会同步到你的正式空间';document.body.prepend(banner);}}).catch(()=>{});
 
 startAutoSync({
  active:()=>localMode()&&!!state&&!saving&&!$('#modal').open&&!document.activeElement?.closest('input,textarea,select')&&page!=='settings',
