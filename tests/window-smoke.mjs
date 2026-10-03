@@ -1,0 +1,35 @@
+import { _electron as electron } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
+const root=path.resolve(import.meta.dirname,'..');
+const info=JSON.parse(fs.readFileSync(path.join(root,'dist/latest.json')));
+const profile=path.join(root,'test-output','window-'+Date.now());
+const env={...process.env,SHIXU_SHELL_TEST:'1',SHIXU_DESKTOP_HOME:profile,SHIXU_WINDOW_HOME:path.join(profile,'browser'),SHIXU_DESKTOP_PORT:'3196',SHIXU_TEST_BUNDLE:info.output};
+delete env.ELECTRON_RUN_AS_NODE;
+const executablePath=process.env.SHIXU_WINDOW_EXE;
+const options={env,timeout:60000,...(executablePath?{executablePath,args:[]}:{args:[path.join(root,'desktop/window.mjs')]})};
+function stop(){
+ const bundle=executablePath?path.join(path.dirname(executablePath),'resources/payload'):info.output;
+ const stopped=spawnSync(path.join(bundle,'runtime/node.exe'),[path.join(bundle,'desktop/bootstrap.mjs'),'stop'],{env,windowsHide:true,encoding:'utf8',timeout:20000});
+ if(stopped.status!==0)throw Error(stopped.stdout+stopped.stderr);
+}
+let desktop;
+try{
+ desktop=await electron.launch(options);let page=await desktop.firstWindow();
+ await page.getByRole('textbox',{name:'密码',exact:true}).waitFor({timeout:150000});
+ const password=/初始密码：([^\r\n]+)/.exec(fs.readFileSync(path.join(profile,'data/bootstrap.txt'),'utf8'))[1];
+ await page.getByRole('textbox',{name:'密码',exact:true}).fill(password);await page.getByRole('button',{name:/进入我的空间/}).click();await page.locator('#nav').waitFor();
+ const preferences=await desktop.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences());
+ assert.equal(preferences.nodeIntegration,false);assert.equal(preferences.contextIsolation,true);assert.equal(preferences.sandbox,true);
+ assert.equal(await page.evaluate(()=>typeof process),'undefined');
+ await page.evaluate(()=>localStorage.setItem('window-smoke','persistent'));
+ await page.screenshot({path:path.join(root,'test-output/independent-window.png'),fullPage:true});
+ // A detached Windows child can retain test-runner pipes: stop this test backend before closing the harness.
+ stop();await desktop.close();desktop=await electron.launch(options);page=await desktop.firstWindow();await page.locator('#nav').waitFor({timeout:150000});
+ assert.equal(await page.evaluate(()=>localStorage.getItem('window-smoke')),'persistent');
+ console.log('PASS: independent Electron window, real login, sandbox enabled, Node unavailable to pages, login and browser data persist after relaunch.');
+}finally{
+ stop();await desktop?.close();
+}

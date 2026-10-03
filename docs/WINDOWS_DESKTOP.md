@@ -1,5 +1,19 @@
 # Windows 桌面测试版
 
+## 独立窗口安装版
+
+运行 `npm run build:installer` 生成 `Shixu-Setup-0.1.0.exe`（版本号随 package.json）。下载这个安装 EXE、双击安装，桌面出现「时序独立窗口」，进入 Electron 原生窗口中的时序，不需要另外打开浏览器。`dist/latest-installer.json` 记录最新产物。
+
+安装版自带窗口运行环境和 Node。首次启动优先连接原版 3088 服务；没有原服务时，可创建桌面独立空间或先导入完整备份。菜单「时序」中可切换空间、复制桌面空间首次登录信息、打开数据目录或停止桌面后台。关闭窗口保留后台服务。
+
+服务端数据与定制代码继续保存在 `%LOCALAPPDATA%\Shixu`，沿用原桌面空间。Electron 的 Cookie 和离线 IndexedDB 属于独立窗口自己的浏览器空间，不会自动读取 Edge 的离线数据；需要在旧入口导出，再在新窗口导入。服务器登录需要重新进行。安装新版本不自动覆盖现有定制 workspace。升级或卸载前，先用菜单停止桌面后台服务并关闭窗口；卸载保留个人数据。
+
+窗口启用沙箱和上下文隔离，网页不能直接使用 Node；HTTPS 服务器切换仍在设置中进行。同步、AI 接口和权限边界沿用原应用。本机测试不等同于干净电脑或阿里云上线验收；当前安装包没有代码签名。
+
+构建前需 `npm ci`（允许 Electron 官方下载脚本），并有一次 `npm run build:windows` 产物，供复用 Node 与生产依赖。`build:installer` 将最新允许源码覆盖到独立打包目录，生产依赖变化时要求先重新构建基础包。验证入口 `node tests/window-smoke.mjs`；用 `SHIXU_WINDOW_EXE` 指向安装后的 EXE 可验证真实安装版。测试只使用独立临时账号和数据。
+
+## 旧版浏览器启动器
+
 第一版为 Windows x64 原生 EXE 启动器，打开现有浏览器中的时序界面。随包提供 Node 运行环境、npm 与应用依赖，不需要用户另外安装 Node；日常使用不需要 Docker。AI 定制仍在工作台按需准备 Docker、WSL 和 Harness。
 
 ## 使用

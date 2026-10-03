@@ -9,7 +9,8 @@
     "test:ui": "playwright test",
     "customize": "node development/cli.mjs",
     "backup:local": "node backup-local.mjs",
-    "build:windows": "node desktop/build.mjs"
+    "build:windows": "node desktop/build.mjs",
+    "build:installer": "node desktop/build-installer.mjs"
   },
   "engines": {
     "node": ">=24"
@@ -27,6 +28,8 @@
     "uuid": "^11.1.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0"
+    "@playwright/test": "^1.63.0",
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
   }
 }

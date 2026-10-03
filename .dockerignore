@@ -9,3 +9,6 @@ playwright.config.mjs
 .shixu-tools
 .shixu-development
 .shixu-development.lock
+dist
+.shixu-releases
+.shixu-releases.lock
