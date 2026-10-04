@@ -1,4 +1,4 @@
-import {app,BrowserWindow,Menu,dialog,clipboard,shell,session} from 'electron';
+import {app,BrowserWindow,Menu,dialog,clipboard,shell,session,Tray,nativeImage} from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
@@ -7,7 +7,9 @@ const testing=process.env.SHIXU_SHELL_TEST==='1';
 if(process.env.SHIXU_WINDOW_HOME)app.setPath('userData',process.env.SHIXU_WINDOW_HOME);
 const bundle=app.isPackaged?path.join(process.resourcesPath,'payload'):process.env.SHIXU_TEST_BUNDLE;
 const home=process.env.SHIXU_DESKTOP_HOME||path.join(process.env.LOCALAPPDATA,'Shixu');
-let window;
+let window,tray,quitting=false;
+app.on('before-quit',()=>{quitting=true;});
+const reveal=()=>{if(window&&!window.isDestroyed()){if(window.isMinimized())window.restore();window.show();window.focus();}};
 async function run(action,arg) {
  return new Promise((resolve,reject)=>{
   const child=spawn(path.join(bundle,'runtime/node.exe'),[path.join(bundle,'desktop/bootstrap.mjs'),action,...(arg?[arg]:[])],{cwd:bundle,env:process.env,windowsHide:true,stdio:['ignore','pipe','pipe']});
@@ -28,7 +30,19 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
  app.on('second-instance',()=>{if(window){if(window.isMinimized())window.restore();window.show();window.focus();}});
  void app.whenReady().then(async()=>{
  session.defaultSession.setPermissionRequestHandler((webContents,permission,callback)=>callback(permission==='notifications'&&permitted(webContents.getURL())));
- window=new BrowserWindow({width:1320,height:900,minWidth:760,minHeight:560,title:'时序',show:!testing,backgroundColor:'#f6f7f5',webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});
+ const icon=path.join(bundle,'app/public/desktop.ico');
+ window=new BrowserWindow({width:1320,height:900,minWidth:760,minHeight:560,title:'时序',icon,show:!testing,autoHideMenuBar:true,titleBarStyle:'hidden',titleBarOverlay:{color:'#f7f8f4',symbolColor:'#24382f',height:42},backgroundColor:'#f6f7f5',webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,backgroundThrottling:false}});
+ tray=new Tray(nativeImage.createFromPath(icon));tray.setToolTip('时序 · 正在后台运行');
+ tray.setContextMenu(Menu.buildFromTemplate([{label:'打开时序',click:reveal},{label:'收起到后台',click:()=>window.hide()},{type:'separator'},{label:'退出时序并停止桌面独立服务',click:()=>guarded(async()=>{if(fs.existsSync(path.join(home,'desktop.json')))await run('stop');quitting=true;app.quit();})}]));
+ tray.on('click',reveal);tray.on('double-click',reveal);
+ window.on('close',event=>{if(!quitting){event.preventDefault();window.hide();}});
+ window.webContents.on('did-finish-load',()=>{void window.webContents.executeJavaScript(`(()=>{
+  if(document.getElementById('desktop-titlebar'))return;
+  const style=document.createElement('style');style.textContent='body{padding-top:44px}.sidebar{top:44px;height:calc(100dvh - 44px)}#desktop-titlebar{position:fixed;inset:0 0 auto;height:44px;display:flex;align-items:center;padding:0 18px;gap:9px;z-index:9999;background:var(--bg,#f7f8f4);color:var(--muted,#6f8178);font:12px "Segoe UI","Microsoft YaHei",sans-serif;-webkit-app-region:drag;border-bottom:1px solid var(--line,#e6eae2)}#desktop-titlebar img{width:21px;height:21px}';document.head.append(style);
+  const bar=document.createElement('div');bar.id='desktop-titlebar';const image=document.createElement('img');image.src='/icon.svg';image.alt='';bar.append(image,document.createTextNode('时序 · 给重要的事留时间'));document.body.prepend(bar);
+ })()`).catch(()=>{});});
+ const themeTimer=setInterval(async()=>{try{if(window.isDestroyed())return;const colors=await window.webContents.executeJavaScript(`({background:getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()||'#f7f8f4',ink:getComputedStyle(document.documentElement).getPropertyValue('--ink').trim()||'#24382f'})`);window.setTitleBarOverlay({color:colors.background,symbolColor:colors.ink,height:42});}catch{}},1000);themeTimer.unref();
+ window.on('closed',()=>{clearInterval(themeTimer);tray?.destroy();});
  window.webContents.on('will-attach-webview',event=>event.preventDefault());
  window.webContents.on('will-navigate',(event,url)=>{if(!permitted(url))event.preventDefault();});
  window.webContents.on('will-redirect',(event,url)=>{if(!permitted(url))event.preventDefault();});
@@ -41,6 +55,7 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
    {label:'打开桌面数据文件夹',click:()=>guarded(async()=>{const state=await run('status');fs.mkdirSync(state.data,{recursive:true});await shell.openPath(state.data);})},
    {type:'separator'},
    {label:'停止桌面后台服务',click:()=>guarded(async()=>{await run('stop');await dialog.showMessageBox(window,{message:'桌面后台服务已停止'});})},
+   {label:'收起到后台',click:()=>window.hide()},
    {role:'quit',label:'退出窗口（保留后台服务）'}]},
   {label:'编辑',submenu:[{role:'undo',label:'撤销'},{role:'redo',label:'重做'},{type:'separator'},{role:'cut',label:'剪切'},{role:'copy',label:'复制'},{role:'paste',label:'粘贴'},{role:'selectAll',label:'全选'}]},
   {label:'视图',submenu:[{role:'reload',label:'刷新'},{role:'resetZoom',label:'实际大小'},{role:'zoomIn',label:'放大'},{role:'zoomOut',label:'缩小'},{role:'togglefullscreen',label:'全屏'}]}

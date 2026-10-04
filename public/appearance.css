@@ -1,4 +1,13 @@
 :root{--accent:#2b5747;--accent-ink:#fff;--green:var(--accent);--surface:#fff;--surface-soft:#f1f4ef;--user-font:'Segoe UI','Microsoft YaHei',sans-serif}
+:root{--accent-secondary:#c58b5b}
+.hero{background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 11%,var(--surface)),color-mix(in srgb,var(--accent-secondary) 7%,var(--surface)))!important}
+.hero .hero-art,.stat.orange b{color:var(--accent-secondary)!important}.inspiration{border-top:2px solid color-mix(in srgb,var(--accent-secondary) 55%,var(--line))!important}
+.color-presets{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;font-size:.85rem;color:var(--muted)}.color-presets button{border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:var(--surface);color:var(--ink)}
+.date-badge{background:var(--date-background,var(--surface))!important;color:var(--date-text,var(--ink))!important;border:1px solid var(--line);border-radius:20px!important;padding:15px 18px!important;min-width:78px;box-shadow:0 8px 28px #00000008}
+.date-badge small,.date-badge b{color:inherit!important}.date-badge small{letter-spacing:.14em;font-size:.75rem}.date-badge b{font-variant-numeric:tabular-nums;font-weight:500}
+.color-control{display:flex;align-items:center;gap:10px;margin-top:7px}.color-control input[type=color]{width:48px!important;min-width:48px;height:44px;margin:0;padding:4px;border-radius:12px}.color-control .color-code{margin:0;min-width:0;font-family:Consolas,monospace;font-size:.92rem;letter-spacing:.025em}.color-code[aria-invalid=true]{border-color:#cf7769!important;box-shadow:0 0 0 2px #cf776922}
+.brand-icon{background:transparent url('/icon.svg') center/contain no-repeat!important;color:transparent!important;border-radius:25%;box-shadow:none!important}
+@media(min-width:851px){.dashboard{gap:24px}.dashboard-right .card{padding:26px}.page-heading{align-items:center}.hero{border-radius:26px}.stats .stat{border-radius:18px}.task-list{border-radius:22px;overflow:hidden}}
 body,input,select,textarea,button,.hero h2,.page-heading h1,.modal-heading h2,.inspiration p{font-family:var(--user-font)}
 .primary{background:var(--accent);color:var(--accent-ink)}
 nav button.active{background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--green)}

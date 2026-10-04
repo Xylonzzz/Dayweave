@@ -24,7 +24,27 @@ try{
  const preferences=await desktop.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences());
  assert.equal(preferences.nodeIntegration,false);assert.equal(preferences.contextIsolation,true);assert.equal(preferences.sandbox,true);
  assert.equal(await page.evaluate(()=>typeof process),'undefined');
+ if(process.env.SHIXU_TEST_APPEARANCE==='1'){
+  await page.evaluate(()=>{location.hash='#settings';});
+  const primary=page.getByRole('textbox',{name:'主主题色（颜色代码）',exact:true});await primary.waitFor();
+  await primary.fill('');await primary.pressSequentially('#405BC4');assert.equal(await primary.inputValue(),'#405BC4');
+  await page.getByRole('textbox',{name:'辅主题色（颜色代码）',exact:true}).fill('rgb(229, 144, 120)');
+  await page.getByRole('textbox',{name:'日期卡片背景（颜色代码）',exact:true}).fill('0#243445');
+  await page.getByRole('textbox',{name:'日期卡片文字（颜色代码）',exact:true}).fill('#FFEEDD');
+  await page.locator('#appearance-form select[name=mode]').selectOption('dark');
+  await page.getByRole('textbox',{name:'气泡颜色（颜色代码）',exact:true}).fill('#AABBCC');
+  const secondary=page.getByRole('textbox',{name:'辅主题色（颜色代码）',exact:true});await secondary.fill('invalid');
+  assert.equal(await secondary.getAttribute('aria-invalid'),'true');
+  assert.equal(await page.evaluate(()=>window.shixuAppearance.get().secondary),'#e59078');
+  await page.evaluate(()=>{location.hash='#today';});await page.locator('.date-badge').waitFor();
+  const badge=await page.locator('.date-badge').evaluate(e=>({bg:getComputedStyle(e).backgroundColor,ink:getComputedStyle(e.querySelector('b')).color}));
+  assert.deepEqual(badge,{bg:'rgb(36, 52, 69)',ink:'rgb(255, 238, 221)'});
+  await desktop.evaluate(({BrowserWindow})=>{BrowserWindow.getAllWindows()[0].close();});
+  assert.equal(await desktop.evaluate(({BrowserWindow})=>({count:BrowserWindow.getAllWindows().length,visible:BrowserWindow.getAllWindows()[0].isVisible()})).then(x=>x.count===1&&!x.visible),true);
+  await desktop.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].show());
+ }
  await page.evaluate(()=>localStorage.setItem('window-smoke','persistent'));
+ await page.evaluate(()=>window.scrollTo(0,0));
  await page.screenshot({path:path.join(root,'test-output/independent-window.png'),fullPage:true});
  // A detached Windows child can retain test-runner pipes: stop this test backend before closing the harness.
  stop();await desktop.close();desktop=await electron.launch(options);page=await desktop.firstWindow();await page.locator('#nav').waitFor({timeout:150000});
