@@ -1,0 +1,19 @@
+/* Web-rendered surface styles; these do not sample the Windows desktop. */
+.brand-icon{border:0!important;outline:0!important}
+.brand:focus:not(:focus-visible){outline:none}
+.topbar{border-bottom-color:color-mix(in srgb,var(--ink) 7%,transparent)!important}
+:root{--material-fill:var(--surface);--material-texture:none;--material-blur:0px}
+:root[data-material=frosted]{--material-fill:color-mix(in srgb,var(--surface) 91%,transparent);--material-blur:12px;--material-texture:linear-gradient(145deg,color-mix(in srgb,var(--accent) 4%,transparent),transparent)}
+:root[data-material=glass]{--material-fill:color-mix(in srgb,var(--surface) 60%,transparent);--material-blur:18px;--material-texture:linear-gradient(135deg,color-mix(in srgb,var(--ink) 3%,transparent),transparent 55%)}
+:root[data-material=acrylic]{--material-fill:color-mix(in srgb,var(--surface) 78%,transparent);--material-blur:28px;--material-texture:repeating-linear-gradient(125deg,transparent 0 2px,color-mix(in srgb,var(--ink) 1.5%,transparent) 2px 3px)}
+:root[data-material=mica]{--material-fill:var(--surface);--material-texture:radial-gradient(ellipse at 0 0,color-mix(in srgb,var(--accent) 15%,transparent),transparent 75%),radial-gradient(ellipse at 100% 100%,color-mix(in srgb,var(--accent-secondary) 9%,transparent),transparent 70%)}
+:root[data-material=paper]{--material-fill:color-mix(in srgb,var(--surface) 97%,var(--accent-secondary));--material-texture:repeating-linear-gradient(0deg,transparent 0 3px,color-mix(in srgb,var(--ink) 2%,transparent) 3px 4px)}
+:root[data-material]:not([data-material=solid]) body{background-image:radial-gradient(ellipse at 18% 5%,color-mix(in srgb,var(--accent) 12%,transparent),transparent 58%),radial-gradient(ellipse at 90% 85%,color-mix(in srgb,var(--accent-secondary) 9%,transparent),transparent 55%);background-attachment:fixed}
+:root[data-material]:not([data-material=solid]) :is(.card,.stat,.task-list,.idea-card,.quadrant-card,.hero,.sidebar,.topbar,dialog){background-color:var(--material-fill)!important;background-image:var(--material-texture)!important;backdrop-filter:blur(var(--material-blur)) saturate(1.15)!important;border-color:color-mix(in srgb,var(--ink) 9%,transparent)!important;box-shadow:0 8px 28px #00000008}
+:root[data-material]:not([data-material=solid]) .task-item{background:transparent!important}
+:is(#idea-bubbles,.bubble-preview)[data-material=frosted] :is(.bubble-face,.bubble-sample){backdrop-filter:blur(calc(var(--bubble-alpha)*12px));background-image:linear-gradient(135deg,var(--bubble-material-light),transparent)}
+:is(#idea-bubbles,.bubble-preview)[data-material=glass] :is(.bubble-face,.bubble-sample){backdrop-filter:blur(calc(var(--bubble-alpha)*20px)) saturate(1.25);background-image:linear-gradient(140deg,var(--bubble-material-light),transparent 48%,var(--bubble-material-light))}
+:is(#idea-bubbles,.bubble-preview)[data-material=acrylic] :is(.bubble-face,.bubble-sample){backdrop-filter:blur(calc(var(--bubble-alpha)*32px)) saturate(1.4);background-image:repeating-linear-gradient(125deg,transparent 0 2px,var(--bubble-material-light) 2px 3px)}
+:is(#idea-bubbles,.bubble-preview)[data-material=mica] :is(.bubble-face,.bubble-sample){background-image:radial-gradient(ellipse at 5% 0,var(--bubble-material-light),transparent 70%),linear-gradient(125deg,transparent,var(--bubble-material-tint))}
+:is(#idea-bubbles,.bubble-preview)[data-material=paper] :is(.bubble-face,.bubble-sample){background-image:repeating-linear-gradient(0deg,transparent 0 3px,var(--bubble-material-light) 3px 4px)}
+@supports not (backdrop-filter:blur(1px)){:root[data-material]:not([data-material=solid]) :is(.card,.stat,.task-list,.idea-card,.quadrant-card,.hero,.sidebar,.topbar,dialog){background-color:var(--surface)!important}}

@@ -32,6 +32,18 @@ try{
   await page.getByRole('textbox',{name:'日期卡片背景（颜色代码）',exact:true}).fill('0#243445');
   await page.getByRole('textbox',{name:'日期卡片文字（颜色代码）',exact:true}).fill('#FFEEDD');
   await page.locator('#appearance-form select[name=mode]').selectOption('dark');
+  if(process.env.SHIXU_TEST_MATERIALS==='1'){
+   for(const material of ['solid','frosted','glass','acrylic','mica','paper']){
+    await page.locator('#appearance-form select[name=material]').selectOption(material);
+    await page.locator('#bubble-settings select[name=material]').selectOption(material);
+    assert.equal(await page.locator('html').getAttribute('data-material'),material);
+    assert.equal(await page.locator('.bubble-preview').getAttribute('data-material'),material);
+   }
+   await page.locator('#appearance-form select[name=material]').selectOption('glass');
+   assert.equal(await page.locator('.bubble-sample').evaluate(e=>getComputedStyle(e).backdropFilter),'none','bubble paper material must not inherit page glass');
+   assert.equal(await page.locator('.sidebar .brand-icon').evaluate(e=>getComputedStyle(e).borderTopWidth),'0px');
+   assert.equal(await page.locator('#desktop-titlebar').evaluate(e=>getComputedStyle(e).borderBottomWidth),'0px');
+  }
   await page.getByRole('textbox',{name:'气泡颜色（颜色代码）',exact:true}).fill('#AABBCC');
   const secondary=page.getByRole('textbox',{name:'辅主题色（颜色代码）',exact:true});await secondary.fill('invalid');
   assert.equal(await secondary.getAttribute('aria-invalid'),'true');
@@ -49,6 +61,10 @@ try{
  // A detached Windows child can retain test-runner pipes: stop this test backend before closing the harness.
  stop();await desktop.close();desktop=await electron.launch(options);page=await desktop.firstWindow();await page.locator('#nav').waitFor({timeout:150000});
  assert.equal(await page.evaluate(()=>localStorage.getItem('window-smoke')),'persistent');
+ if(process.env.SHIXU_TEST_MATERIALS==='1'){
+  assert.equal(await page.evaluate(()=>window.shixuAppearance.get().material),'glass');
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('shixu-idea-bubbles')).material),'paper');
+ }
  console.log('PASS: independent Electron window, real login, sandbox enabled, Node unavailable to pages, login and browser data persist after relaunch.');
 }finally{
  stop();await desktop?.close();
