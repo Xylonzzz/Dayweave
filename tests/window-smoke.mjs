@@ -32,12 +32,23 @@ try{
   await page.getByRole('textbox',{name:'日期卡片背景（颜色代码）',exact:true}).fill('0#243445');
   await page.getByRole('textbox',{name:'日期卡片文字（颜色代码）',exact:true}).fill('#FFEEDD');
   await page.locator('#appearance-form select[name=mode]').selectOption('dark');
+  if(process.env.SHIXU_TEST_THEMES==='1'){
+   await page.getByRole('textbox',{name:'整体背景色（颜色代码）',exact:true}).fill('#20152A');
+   await page.getByRole('textbox',{name:'主题名称',exact:true}).fill('我的紫色夜间');await page.locator('#theme-save').click();
+   const preset=await page.evaluate(()=>JSON.parse(localStorage.getItem('shixu-theme-presets'))[0]);
+   await page.locator('#theme-preset').selectOption('forest');
+   assert.equal(await page.evaluate(()=>window.shixuAppearance.get().background),'#edf2ec');
+   await page.locator('#theme-preset').selectOption(preset.id);
+   assert.equal(await page.evaluate(()=>window.shixuAppearance.get().background),'#20152a');
+   assert.equal(await page.evaluate(()=>window.shixuAppearance.get().mode),'dark');
+  }
   if(process.env.SHIXU_TEST_MATERIALS==='1'){
    for(const material of ['solid','frosted','glass','acrylic','mica','paper']){
     await page.locator('#appearance-form select[name=material]').selectOption(material);
     await page.locator('#bubble-settings select[name=material]').selectOption(material);
     assert.equal(await page.locator('html').getAttribute('data-material'),material);
     assert.equal(await page.locator('.bubble-preview').getAttribute('data-material'),material);
+    if(process.env.SHIXU_TEST_THEMES==='1')assert.equal(await page.locator('.topbar').evaluate(e=>getComputedStyle(e).backgroundColor),'rgba(0, 0, 0, 0)');
    }
    await page.locator('#appearance-form select[name=material]').selectOption('glass');
    assert.equal(await page.locator('.bubble-sample').evaluate(e=>getComputedStyle(e).backdropFilter),'none','bubble paper material must not inherit page glass');
@@ -61,6 +72,7 @@ try{
  // A detached Windows child can retain test-runner pipes: stop this test backend before closing the harness.
  stop();await desktop.close();desktop=await electron.launch(options);page=await desktop.firstWindow();await page.locator('#nav').waitFor({timeout:150000});
  assert.equal(await page.evaluate(()=>localStorage.getItem('window-smoke')),'persistent');
+ if(process.env.SHIXU_TEST_THEMES==='1')assert.equal(await page.evaluate(()=>window.shixuAppearance.get().background),'#20152a');
  if(process.env.SHIXU_TEST_MATERIALS==='1'){
   assert.equal(await page.evaluate(()=>window.shixuAppearance.get().material),'glass');
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('shixu-idea-bubbles')).material),'paper');
