@@ -1,67 +1,147 @@
-# 时序 · 学生时间管理
+# Dayweave · 时序
 
-面向 Windows 和 Android 的个人时间规划网页。课程、作业、项目任务与灵感统一保存到服务端。支持自己的电脑/NAS、腾讯云、阿里云及其他 Node.js/Docker 主机。尚未部署到公网。
+**给重要的事留时间。**
+**Make room for what matters.**
 
-Windows 已有 Electron 独立窗口与单个安装 EXE 测试包，自带运行环境，源码和个人数据单独保存。先 `npm run build:windows` 准备基础包，再 `npm run build:installer` 生成安装器；原浏览器启动器仍可使用。迁移与使用见 [Windows 桌面版](docs/WINDOWS_DESKTOP.md)，阿里云采购与准备见 [阿里云部署](docs/ALIYUN.md)。
+Dayweave 是面向学生与个人项目的时间管理工具，将课程、作业、项目、日程和灵感放在同一个空间。支持本地离线使用、可选的自托管同步，以及通过 AI 辅助规划和定制工具。
 
-## 本地启动
+Dayweave is a personal planner for students and independent projects. It brings classes, assignments, projects, schedules, and ideas into one workspace, with local offline editing, optional self-hosted synchronization, and AI-assisted planning and customization.
 
-需要 Node.js 24。双击 `start.cmd`，或执行 `npm install`、`npm start`，访问 http://localhost:3088 。
+> 当前版本处于早期开发阶段。Windows 提供 Electron 桌面端；Android 通过浏览器或 PWA 使用。本仓库提供源码，尚未选定项目开源许可证。
+>
+> This project is in early development. Windows uses an Electron desktop app; Android access is through a browser or PWA. Source code is available here, but a project license has not yet been selected.
 
-首次启动会生成 `data/bootstrap.txt`，其中包含用户名与初始密码；也可在首次启动前通过 `.env` 设置 `ADMIN_USER` 和 `ADMIN_PASSWORD`。已有账号不会被环境变量覆盖。登录后在设置中修改密码。
+## 功能 / Features
 
-`data/` 包含数据库和密钥，不要公开、提交到 Git 或单独丢弃密钥文件。
+| 中文 | English |
+| --- | --- |
+| **课程与日历**：管理学期课表、教学周、单双周和固定日程，支持日、周、月、年视图。 | **Classes and calendar:** manage term schedules, teaching weeks, alternating weeks, and fixed events with day, week, month, and year views. |
+| **作业与项目**：记录截止时间、预计耗时、优先级与自定义任务类型；区分“已完成”和“已提交”。 | **Assignments and projects:** track deadlines, estimates, priorities, and custom task types; keep completion and submission separate. |
+| **四象限与复盘**：按重要性和紧急程度整理任务，记录每日、每周和每月的进展。 | **Quadrants and reviews:** organize tasks by importance and urgency, and reflect on daily, weekly, and monthly progress. |
+| **灵感收件箱**：记录想法、关联项目，支持可调颜色、材质、运动与立体效果的灵感气泡。 | **Idea inbox:** capture ideas, associate them with projects, and display floating bubbles with adjustable colors, materials, motion, and depth. |
+| **AI 时间管家**：自然语言整理事项、辅助排程与文件识别；支持不同模型 API 和 Harness 工具调用。 | **AI planning assistant:** turn natural language into actionable items, suggest schedules, and interpret imported files using configurable model APIs and Harness tools. |
+| **课表导入**：支持 XLSX、文字 PDF、CSV/TXT；识别后可预览、修改并确认导入。 | **Timetable import:** import XLSX, text-based PDF, and CSV/TXT files, then preview, edit, and confirm the results. |
+| **本地与同步**：本地空间可离线编辑，选择自己的服务器，预览同步差异并处理冲突。 | **Local use and sync:** edit a local workspace offline, choose your own server, preview differences, and resolve conflicts. |
+| **外观定制**：双主题色、自定义背景、主题预设、字体大小、深浅模式，以及玻璃、亚克力、云母等模拟材质。 | **Appearance:** two theme colors, custom backgrounds, saved presets, font sizing, light/dark modes, and simulated glass, acrylic, mica, and other materials. |
+| **Windows 桌面端**：独立窗口、安装程序和系统托盘；关闭窗口后可继续在后台运行。 | **Windows desktop:** a standalone window, installer, and system tray, with background operation after the window is closed. |
 
-需要 AI 改造时序时，在 Windows x64 本机打开「设置 → 定制我的工具 → 一键准备定制环境」。向导按需准备 WSL、Docker 和 Harness，保存配置进度，支持重启后继续。日常日程功能不需要这些开发组件。详见 [定制环境与使用说明](docs/SELF_CUSTOMIZATION.md)。
+## 本地启动 / Run locally
 
-## 已实现
+安装 **Node.js 24 或更高版本** 与 Git，然后执行：
+Install **Node.js 24 or later** and Git, then run:
 
-- 本地空间可手动连接多个同步目标，先预览双方差异，选择合并或单向覆盖；冲突逐条选择，断网重试不重复写入。详见 [手动同步与恢复](docs/MANUAL_SYNC.md) 和 [工程后续顺序](docs/ROADMAP.md)。
+```bash
+git clone https://github.com/Xylonzzz/Dayweave.git
+cd Dayweave
+npm ci
+npm start
+```
 
-- “跟 AI 说”：一句话拆分多个固定活动和作业，完整信息可自动加入并撤销；缺少钟点等信息先集中补充。活动锁定并检查撞课，作业截止点显示在周历。当前支持新增事项，不自动修改或删除已有日程。
+打开 <http://localhost:3088>。Windows 也可以使用项目中的 `start.cmd`。
+Open <http://localhost:3088>. On Windows, you can also use `start.cmd`.
 
-- 登录、密码修改、服务端 SQLite 持久化；每 15 秒读取更新，版本号防止两台设备覆盖修改。冲突时保留表单供用户复制，刷新后重试。
-- 学期课表：手动新增、修改，教学周、单双周、课程地点；周视图。
-- 作业与项目任务：截止时间、预估耗时、优先级、所属课程/项目、要求和提交入口。作业完成与提交分离，支持实际提交时间补录。
-- 灵感：记录、编辑、关联项目、预填为项目任务；不会自动发给 AI。
-- 多 API 配置：OpenAI Chat Completions 兼容格式、Anthropic Messages 格式；服务端 AES-256-GCM 加密 API Key，浏览器不回读明文。调用入口包括连接测试、生成排程、课表提取。
-- AI 草稿：保留已有日程，检查课程/草稿重叠、截止日期、作息、任务状态和预计耗时，确认后才能应用。可清除未来未锁定日程后重排；手动调整使用时间编辑表单，尚无拖拽。
-- XLSX 结构化课程明细优先直接解析（无需 AI）；其他 XLSX、文字 PDF、CSV/TXT 提取后交给所选模型识别，再预览修改和确认导入。只有节次时支持批量补全上下课钟点。旧 `.xls` 需另存为 `.xlsx`；扫描 PDF 暂无 OCR。
-- Service Worker / Web Push 订阅、测试通知、后台定时任务、可选 SMTP 邮件；勿扰时间内不发送，后台中断超过 15 分钟的提醒不会补发。
-- 服务器地址切换、版本化 JSON 导出与预览恢复（含恢复点）、响应式布局、PWA 清单。本地空间支持离线编辑、待同步数量和手动合并；首次手动同步后可开启前台自动同步，冲突暂停待处理，默认关闭。
+首次启动会在 `data/bootstrap.txt` 生成初始登录信息。也可在首次启动前复制 `.env.example` 为 `.env`，设置 `ADMIN_USER` 和 `ADMIN_PASSWORD`。已有账号不会被这些环境变量覆盖。
 
-## 云端部署
+On first launch, initial login details are generated in `data/bootstrap.txt`. Alternatively, copy `.env.example` to `.env` and set `ADMIN_USER` and `ADMIN_PASSWORD` before the first launch. These variables do not overwrite an existing account.
 
-详见 [自托管与中国平台指南](docs/SELF_HOST.md)，以及 [开源准备情况](OPEN_SOURCE.md)。
+`data/` 包含个人数据库和密钥，不应提交到仓库。完整迁移请保留整个数据目录；网页 JSON 导出不包含账号、API 密钥和推送订阅。
 
-需要一台可持续运行 Docker 的服务器、域名 DNS 指向服务器，以及开放 80/443 端口。不要使用会休眠的纯静态托管来运行后台提醒。
+The `data/` directory contains your database and encryption keys and must stay out of version control. Preserve the entire directory for a full migration; browser JSON exports do not include accounts, API keys, or push subscriptions.
 
-1. 复制 `.env.example` 为 `.env`，填写 `SITE_DOMAIN=你的域名`、`PUBLIC_ORIGIN=https://你的域名`、`HOST=0.0.0.0`、强密码 `ADMIN_PASSWORD`。首次部署前设置即可。
-2. 执行 `docker compose up -d --build`。Caddy 申请 HTTPS 证书，应用数据保存在命名卷 `planner-data`。
-3. 在手机和电脑打开同一 HTTPS 地址，使用同一账号登录。Android Chrome 中选择“添加到主屏幕 / 安装应用”。
-4. 在设置中添加 API 配置。Base URL 需要包括版本路径，如服务商要求的 `/v1`，不要附加 `/chat/completions` 或 `/messages`。API 以服务商实际格式为准。
-5. 在两台设备分别开启通知并发送测试。再测试关闭页面、锁屏、省电模式及移动网络下的接收。浏览器推送受系统与网络影响，服务端发送成功不等于设备收到。
-6. 配置 `SMTP_HOST/PORT/SECURE/USER/PASS/MAIL_FROM/MAIL_TO` 并重启，启用邮件备用。填写真实 VAPID 联系邮箱。未配置不会发送邮件。
+## Windows 安装包 / Windows installer
 
-实例目前是单用户个人空间，无公开注册。不要让不可信用户共享账号。部署前应更换密码并限制服务器访问权限。
+Windows 桌面版基于 Electron，安装包包含运行环境，普通使用不需要单独安装 Node.js。仓库中的源码不等于已发布的安装包；构建步骤如下：
 
-## 备份
+The Electron desktop installer bundles its runtime, so normal use does not require a separate Node.js installation. Source availability does not imply a published binary release. To build on Windows:
 
-网页可导出课程、任务、灵感和偏好 JSON。完整迁移需备份整个 `data` 目录或 Docker 的 `planner-data` 卷，包括 `secret.key`，备份时先停止应用以保持 SQLite 文件一致。网页支持导入预览、确认替换和下载导入前恢复点。JSON 不携带账号、API Key 和推送订阅，换服务器后需单独配置。
+```bash
+npm ci
+npm run build:windows
+npm run build:installer
+```
 
-## 验证与边界
+构建产物位于 `dist/`，最新安装包信息见 `dist/latest-installer.json`。详见 [Windows 桌面版](docs/WINDOWS_DESKTOP.md)。
 
-`npm test` 运行排程规则与服务端集成测试。`npm run test:ui` 运行 Windows Edge 的桌面/手机视口交互测试（需要已安装 Edge）。测试使用独立目录，不接触个人数据。
+Build outputs are stored in `dist/`; `dist/latest-installer.json` identifies the latest installer. See the [Windows desktop guide](docs/WINDOWS_DESKTOP.md).
 
-真实课表的识别准确率、真实模型响应、付费部署、邮件投递、Android 锁屏通知，必须取得配置或实机之后继续验收。模型可提出时间安排，但无法保证任务在估计时长内完成。
+## AI 与定制开发 / AI and customization
 
-协议参考：[OpenAI Chat API](https://developers.openai.com/api/reference/resources/chat)、[Anthropic Messages](https://platform.claude.com/docs/en/api/messages)、[MDN Push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API)。
+在设置中配置模型 API。支持 OpenAI Chat Completions 兼容格式和 Anthropic Messages 格式；Harness 的兼容范围与普通 API 调用不同，详见 [Harness 集成](docs/HARNESS_INTEGRATION.md)。使用自己的 API 配置，费用与可用性取决于服务商。
 
+Configure your model API in Settings. Direct calls support OpenAI-compatible Chat Completions and Anthropic Messages. Harness has its own compatibility requirements; see [Harness integration](docs/HARNESS_INTEGRATION.md). Use your own API credentials; availability and billing depend on your provider.
 
-## AI 自定义开发（实验性）
+**实验性 AI 定制开发**可以让 AI 在独立项目副本中修改代码、通过 Docker 运行测试、审查改动，并提供源码对照、整合和恢复。Windows x64 可在“偏好与 AI 设置 → 定制我的工具”中使用环境准备向导，按需准备 WSL、Docker 和 Harness。
 
-`npm run customize -- --doctor` 检查环境。第一版通过 DeepSeek Harness 在独立副本中开发、容器测试、独立审查，通过后自动整合源码并保存恢复点。需 Docker Linux 容器及已配置的 Harness；日常时间管理不受此可选依赖影响。使用方法和限制见 [自定义开发说明](docs/SELF_CUSTOMIZATION.md)。
+**Experimental AI customization** lets an agent modify an isolated project copy, run tests through Docker, review changes, and provide diffs, integration, and recovery. On Windows x64, the setup wizard under Settings → Customize my tool can prepare WSL, Docker, and Harness as needed.
 
-页面入口位于「偏好与 AI 设置 → 定制我的工具」，支持后台任务、实际测试日志、源码对照、手动整合和恢复。远程开发权限由 `SHIXU_DEVELOPMENT` 控制，默认只允许本机直接连接。
+```bash
+npm run customize -- --doctor
+```
 
-通过桌面启动器运行时，可将候选版本先放入独立容器试用，再确认切换；支持启动失败恢复和主动恢复旧版本，同时保留最新数据。第一阶段支持兼容的前端改动，后端与数据库迁移另行处理。详见 [试运行与版本切换](docs/VERSION_RELEASES.md)。
+日常时间管理不需要 Docker。源码整合、候选版本试运行和已安装 EXE 的升级是不同步骤，不能把 AI 修改源码等同于完整软件自动升级。详见 [定制指南](docs/SELF_CUSTOMIZATION.md) 和 [版本切换](docs/VERSION_RELEASES.md)。
+
+Everyday planning does not require Docker. Source integration, candidate previews, and upgrading an installed EXE are separate steps; an AI source edit is not a complete application update. See [self-customization](docs/SELF_CUSTOMIZATION.md) and [version switching](docs/VERSION_RELEASES.md).
+
+## 自托管与同步 / Self-hosting and synchronization
+
+可部署到自己的电脑、NAS 或支持 Node.js / Docker 的服务器，包括阿里云。当前服务按**一个实例、一个个人空间**设计，不是支持公开注册的多用户平台。
+
+Deploy on your own computer, NAS, or a Node.js / Docker server, including Alibaba Cloud. The current design is **one instance, one personal workspace**, not a multi-user platform with public registration.
+
+使用 Docker 和 Caddy 部署时，配置 `.env` 中的 `SITE_DOMAIN`、`PUBLIC_ORIGIN`、`HOST` 和首次启动密码，设置域名解析并开放 80/443 端口，然后运行：
+
+For Docker and Caddy deployment, configure `SITE_DOMAIN`, `PUBLIC_ORIGIN`, `HOST`, and the initial password in `.env`, point your domain to the server, open ports 80/443, and run:
+
+```bash
+docker compose up -d --build
+```
+
+Caddy 提供 HTTPS，数据保存在持久化卷。Android 可通过 HTTPS 网页安装 PWA。本地空间的同步是可选项；先手动预览并同步，再按需开启前台自动同步。
+
+Caddy provides HTTPS, and application data is stored in a persistent volume. Android users can install the PWA from the HTTPS site. Local workspace synchronization is optional: preview and sync manually first, then enable foreground automatic sync if desired.
+
+- [自托管指南 / Self-hosting](docs/SELF_HOST.md)
+- [阿里云部署准备 / Alibaba Cloud setup](docs/ALIYUN.md)
+- [离线模式 / Local mode](docs/LOCAL_MODE.md)
+- [同步与恢复 / Sync and recovery](docs/MANUAL_SYNC.md)
+
+## 技术栈与目录 / Stack and source layout
+
+| 目录 / Path | 用途 / Purpose |
+| --- | --- |
+| `public/` | HTML、CSS、原生 JavaScript、PWA 与离线存储 / UI, PWA, and offline storage |
+| `server.mjs` | Node.js、Express 后端入口 / Node.js and Express backend entry |
+| `desktop/` | Electron 桌面端、electron-builder 与 NSIS 安装包 / Desktop shell and Windows packaging |
+| `harness/` | DeepSeek Harness 适配与工具 / Harness integration and tools |
+| `development/` | AI 定制环境、隔离测试、整合与恢复 / AI customization, isolated tests, integration, and recovery |
+| `tests/` | Node.js 测试与 Playwright 界面测试 / Node.js and Playwright tests |
+| `docs/` | 部署、使用和开发说明 / Deployment, usage, and development guides |
+
+后端使用 SQLite；浏览器本地空间使用 IndexedDB，外观偏好使用 localStorage。
+The backend uses SQLite; local browser workspaces use IndexedDB, and appearance preferences use localStorage.
+
+## 验证与当前边界 / Testing and current limitations
+
+```bash
+npm test
+npm run test:ui
+```
+
+界面测试需要对应的浏览器环境，当前配置使用 Windows Edge。测试使用独立数据。打包窗口验收脚本位于 `tests/window-smoke.mjs`。
+
+UI tests require the configured browser environment, currently Windows Edge. Tests use isolated data. Packaged-window checks are available in `tests/window-smoke.mjs`.
+
+- 旧 `.xls` 请另存为 `.xlsx`；扫描 PDF 暂无 OCR。 / Convert legacy `.xls` files to `.xlsx`; scanned PDFs do not currently have OCR support.
+- 文件识别和排程依赖输入质量与模型能力，导入结果可人工修改。 / Import and planning quality depend on input and model capabilities; imported results remain editable.
+- Android 锁屏推送、邮件投递与云端部署需要在实际设备和网络中验证。 / Android lock-screen notifications, email delivery, and cloud deployment require validation on the target devices and networks.
+- 关闭窗口后的后台运行不代表电脑休眠或关机后仍可运行。 / Background operation after closing the window does not continue through computer sleep or shutdown.
+
+## 贡献与许可 / Contributing and licensing
+
+欢迎通过 [Issues](https://github.com/Xylonzzz/Dayweave/issues) 提交问题与建议，通过 Pull Request 提交改进。请描述复现步骤或改动目的，附上相关验证结果，不要提交个人数据、API 密钥或构建产物。
+
+Report bugs and ideas through [Issues](https://github.com/Xylonzzz/Dayweave/issues), or propose changes through a pull request. Include reproduction steps or the purpose of your change and relevant validation results. Do not commit personal data, API credentials, or build outputs.
+
+项目许可证尚未选定，公开源码不等于授予任意使用、修改或再分发的许可。第三方组件遵循各自许可证；随附的 DeepSeek 许可见 [harness/DEEPSEEK-LICENSE.txt](harness/DEEPSEEK-LICENSE.txt)。更多说明见 [开源准备](OPEN_SOURCE.md)。
+
+A project license has not yet been selected. Public source availability does not by itself grant unrestricted rights to use, modify, or redistribute it. Third-party components retain their own licenses; see the bundled [DeepSeek license](harness/DEEPSEEK-LICENSE.txt) and [open-source preparation notes](OPEN_SOURCE.md).
