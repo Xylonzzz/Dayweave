@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
-import {DatabaseSync} from 'node:sqlite';
+
 import {unseal} from '../lib.mjs';
 import {harnessStatus} from '../harness/runtime.mjs';
 import {doctor} from './sandbox.mjs';
@@ -20,6 +20,8 @@ try{
   let provider,key;
   if(process.env.SHIXU_DEV_API_KEY){provider={name:'开发接口',format:'openai',baseUrl:process.env.SHIXU_DEV_BASE_URL||'https://api.deepseek.com/v1',model:process.env.SHIXU_DEV_MODEL||'deepseek-v4-pro'};key=process.env.SHIXU_DEV_API_KEY;}
   else{
+   if(process.env.DB_DRIVER==='mysql')throw Error('MySQL 服务器请通过网页定制入口使用已保存的 API，或设置 SHIXU_DEV_API_KEY；本机 CLI 数据读取仅支持 SQLite');
+   const {DatabaseSync}=await import('node:sqlite');
    const data=path.resolve(root,process.env.DATA_DIR||'data');const db=new DatabaseSync(path.join(data,'planner.sqlite'),{readOnly:true});
    try{const stored=db.prepare("SELECT value FROM kv WHERE key='providers'").get();const all=stored?JSON.parse(stored.value):[];const p=option('--provider')?all.find(p=>p.id===option('--provider')):all.find(p=>p.format==='openai');if(!p)throw Error('请在时序中配置兼容 API，或设置 SHIXU_DEV_API_KEY');key=unseal(p.key,fs.readFileSync(path.join(data,'secret.key')));provider={name:p.name,format:p.format,baseUrl:p.baseUrl,model:p.model};}finally{db.close();}
   }

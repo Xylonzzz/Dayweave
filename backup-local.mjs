@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {DatabaseSync,backup} from 'node:sqlite';
 import {pathToFileURL} from 'node:url';
 export async function backupLocal(dataDir){
+ if(process.env.DB_DRIVER==='mysql')throw Error('MySQL 模式请使用 mysqldump 并备份 data/secret.key；backup:local 只备份 SQLite，详见 docs/WINDOWS_MYSQL.md');
+ const {DatabaseSync,backup}=await import('node:sqlite');
  const source=path.resolve(dataDir),dbFile=path.join(source,'planner.sqlite'),key=path.join(source,'secret.key');
  if(!fs.existsSync(dbFile)||!fs.existsSync(key))throw Error('数据目录缺少数据库或加密密钥，未创建备份');
  const destination=path.join(source,'backups',new Date().toISOString().replace(/[:.]/g,'-'));

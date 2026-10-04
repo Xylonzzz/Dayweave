@@ -93,7 +93,7 @@ export function registerDevelopment(app,{root,installation=root,home=path.join(i
   starting=true;
   try{
    const ready=await report(req);if(!ready.available)return res.status(409).json({error:!ready.harness.available?ready.harness.error:'Docker Linux 容器未就绪：'+ready.docker.message});
-   const credentials=getProvider(providerId);if(credentials.provider.format!=='openai')throw Error('请选择兼容 OpenAI 格式的开发接口');
+   const credentials=await getProvider(providerId);if(credentials.provider.format!=='openai')throw Error('请选择兼容 OpenAI 格式的开发接口');
    const id=crypto.randomUUID(),controller=new AbortController();fs.mkdirSync(folder(id),{recursive:true});
    write(id,{id,request:request.trim(),createdAt:new Date().toISOString(),phase:'queued',events:[]});active={id,controller,progress:'准备开发'};
    // A task belongs to the server, so closing or reloading the browser does not cancel it.

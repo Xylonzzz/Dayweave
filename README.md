@@ -30,6 +30,10 @@ Dayweave is a personal planner for students and independent projects. It brings 
 安装 **Node.js 24 或更高版本** 与 Git，然后执行：
 Install **Node.js 24 or later** and Git, then run:
 
+已有 Node.js 22.2 与 MySQL 5.7 的 Windows 服务器可选择 MySQL 后端，使用独立数据库；详见 [Windows + MySQL 部署](docs/WINDOWS_MYSQL.md)。Server 2012 仍需目标机器验收。以下默认启动步骤使用 SQLite。
+
+For Windows servers with Node.js 22.2 and MySQL 5.7, an optional MySQL backend uses a dedicated database. See [Windows + MySQL deployment](docs/WINDOWS_MYSQL.md). Server 2012 still requires target-machine validation. The default steps below use SQLite.
+
 ```bash
 git clone https://github.com/Xylonzzz/Dayweave.git
 cd Dayweave
@@ -117,8 +121,8 @@ Caddy provides HTTPS, and application data is stored in a persistent volume. And
 | `tests/` | Node.js 测试与 Playwright 界面测试 / Node.js and Playwright tests |
 | `docs/` | 部署、使用和开发说明 / Deployment, usage, and development guides |
 
-后端使用 SQLite；浏览器本地空间使用 IndexedDB，外观偏好使用 localStorage。
-The backend uses SQLite; local browser workspaces use IndexedDB, and appearance preferences use localStorage.
+后端默认使用 SQLite，也可配置 MySQL 5.7；浏览器本地空间使用 IndexedDB，外观偏好使用 localStorage。
+The backend defaults to SQLite and optionally supports MySQL 5.7; local browser workspaces use IndexedDB, and appearance preferences use localStorage.
 
 ## 验证与当前边界 / Testing and current limitations
 

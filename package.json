@@ -10,16 +10,18 @@
     "customize": "node development/cli.mjs",
     "backup:local": "node backup-local.mjs",
     "build:windows": "node desktop/build.mjs",
-    "build:installer": "node desktop/build-installer.mjs"
+    "build:installer": "node desktop/build-installer.mjs",
+    "check:server": "node server-doctor.mjs"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22.2.0"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "multer": "^2.3.0",
+    "mysql2": "^3.24.5",
     "nodemailer": "^10.0.0",
     "pdf-parse": "^2.4.5",
     "web-push": "^3.6.7"

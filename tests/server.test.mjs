@@ -1,14 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
-const port=3099, origin=`http://localhost:${port}`;
-const testDir=path.resolve('test-output',`api-${Date.now()}`);fs.mkdirSync(testDir,{recursive:true});
+const port=Number(process.env.SHIXU_TEST_PORT || 3099), origin=`http://localhost:${port}`;
+const testDir=process.env.SHIXU_TEST_DATA_DIR || path.resolve('test-output',`api-${Date.now()}`);fs.mkdirSync(testDir,{recursive:true});
 test('authenticated API, cross-device conflicts, submission persistence and key secrecy',async t=>{
   const child=spawn(process.execPath,['--import','./tests/mock-ai.mjs','server.mjs'],{env:{...process.env,PORT:String(port),PUBLIC_ORIGIN:origin,DATA_DIR:testDir,ADMIN_PASSWORD:'Integration-test-password-123'},stdio:'pipe'});
-  t.after(()=>child.kill());
+  t.after(async()=>{if(child.exitCode!==null)return;const exited=once(child,'exit');child.kill();await exited;});
   let started=false;let startupError='';child.stderr.on('data',chunk=>startupError+=chunk.toString());
   for(let i=0;i<300;i++){try{const r=await fetch(origin);if(r.ok){started=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}
   assert.ok(started,'server starts: '+startupError.slice(0,1500));
@@ -55,6 +56,13 @@ test('authenticated API, cross-device conflicts, submission persistence and key 
   assert.equal((await call('/api/ai/capture/apply','POST',{id:captured.id,items:captured.items},cookie)).status,409,'capture cannot apply twice');
   const undone=await call('/api/ai/capture/undo','POST',{id:added.undoId},cookie);assert.equal(undone.status,200);assert.equal((await undone.json()).tasks.length,2);
   assert.equal((await call('/api/ai/capture/undo','POST',{id:added.undoId},cookie)).status,409,'undo cannot run twice');
+  const conversations=await (await call('/api/conversations','GET',null,cookie)).json();
+  const created=await call('/api/conversations','POST',{revision:conversations.revision,action:'createThread',title:'新对话'},cookie);
+  assert.equal(created.status,200);const workspace=await created.json();
+  const chatState=await (await call('/api/state','GET',null,cookie)).json();
+  const chat=await call('/api/ai/chat','POST',{providerId,revision:chatState.revision,threadId:workspace.selectedId,chatRevision:workspace.revision,message:'记下一个测试灵感'},cookie);
+  assert.equal(chat.status,200);const reply=await chat.json();assert.ok(reply.undoId);
+  assert.equal((await call('/api/ai/chat/undo','POST',{id:reply.undoId},cookie)).status,200);
   assert.equal((await call('/api/password','POST',{current:'wrong',password:'new-password-is-long'},cookie)).status,400);
   assert.equal((await call('/api/logout','POST',{},cookie)).status,200);
   assert.equal((await call('/api/state','GET',null,cookie)).status,401);
