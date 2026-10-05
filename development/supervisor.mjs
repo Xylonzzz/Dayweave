@@ -6,6 +6,7 @@ import {pathToFileURL} from 'node:url';
 import {backupLocal} from '../backup-local.mjs';
 import {releaseHome,runtimeState,writeJSON,verifyRelease,snapshot,assertCompatible,previewInfo} from './releases.mjs';
 import {digest} from './workspace.mjs';
+import {acquireProcessLock} from './process-lock.mjs';
 
 export class VersionSupervisor{
  constructor(root,{env=process.env,healthTimeout=15000,backup=backupLocal}={}){this.root=root;this.env=env;this.timeout=healthTimeout;this.backup=backup;this.child=null;this.busy=false;this.state=runtimeState(root);this.data=path.resolve(root,env.DATA_DIR||'data');this.port=Number(env.PORT||3088);}
@@ -58,11 +59,10 @@ export class VersionSupervisor{
 if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href){
  const root=path.resolve(import.meta.dirname,'..');await import('dotenv/config');
  fs.mkdirSync(releaseHome(root),{recursive:true});const lock=path.join(releaseHome(root),'supervisor.lock');
- if(fs.existsSync(lock)){const pid=Number(fs.readFileSync(lock,'utf8'));let alive=false;try{process.kill(pid,0);alive=true;}catch{}if(alive)throw Error('版本管理服务已运行');fs.unlinkSync(lock);}
- const fd=fs.openSync(lock,'wx');fs.writeFileSync(fd,String(process.pid));fs.closeSync(fd);
- let controlTimer;const supervisor=new VersionSupervisor(root,{healthTimeout:process.env.SHIXU_DESKTOP_INSTANCE?60000:15000});const close=async()=>{clearInterval(controlTimer);await supervisor.stop().catch(()=>{});try{fs.unlinkSync(lock);}catch{}process.exit();};
+ const releaseLock=acquireProcessLock(lock,path.join(root,'development/supervisor.mjs'));
+ let controlTimer;const supervisor=new VersionSupervisor(root,{healthTimeout:process.env.SHIXU_DESKTOP_INSTANCE?60000:30000});const close=async()=>{clearInterval(controlTimer);await supervisor.stop().catch(()=>{});releaseLock();process.exit();};
  supervisor.onUnexpectedExit=()=>{process.exitCode=1;void close();};
  if(process.env.SHIXU_CONTROL_FILE&&process.env.SHIXU_CONTROL_TOKEN)controlTimer=setInterval(()=>{try{const file=process.env.SHIXU_CONTROL_FILE;if(fs.existsSync(file)&&JSON.parse(fs.readFileSync(file,'utf8')).token===process.env.SHIXU_CONTROL_TOKEN){fs.unlinkSync(file);void close();}}catch{}},500);
- process.on('SIGINT',close);process.on('SIGTERM',close);process.on('exit',()=>{try{fs.unlinkSync(lock);}catch{}});
+ process.on('SIGINT',close);process.on('SIGTERM',close);process.on('exit',releaseLock);
  try{await supervisor.start();}catch(error){console.error(error.message);await close();}
 }
