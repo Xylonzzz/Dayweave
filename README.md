@@ -7,6 +7,9 @@ Dayweave 是面向学生与个人项目的时间管理工具，将课程、作�
 
 Dayweave is a personal planner for students and independent projects. It brings classes, assignments, projects, schedules, and ideas into one workspace, with local offline editing, optional self-hosted synchronization, and AI-assisted planning and customization.
 
+面向初学者的整体说明：[架构、数据位置、通信与工具链](docs/ARCHITECTURE_GUIDE_ZH.md)。
+Beginner-friendly architecture guide (Chinese): [architecture, data storage, communication and toolchain](docs/ARCHITECTURE_GUIDE_ZH.md).
+
 > 当前版本处于早期开发阶段。Windows 提供 Electron 桌面端；Android 通过浏览器或 PWA 使用。本仓库提供源码，尚未选定项目开源许可证。
 >
 > This project is in early development. Windows uses an Electron desktop app; Android access is through a browser or PWA. Source code is available here, but a project license has not yet been selected.
