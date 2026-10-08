@@ -25,7 +25,7 @@ $destination = FullPath (Join-Path $InstallRoot $package.id)
 if (-not $destination.StartsWith($InstallRoot + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid destination' }
 AssertPlainPath $destination
 $marker = Join-Path $destination '.installed.json'
-$shell = New-Object -ComObject WScript.Shell
+Add-Type -Path (Join-Path $PSScriptRoot 'ShellLink.cs')
 $linkName = ([char]0x65F6).ToString() + [char]0x5E8F + ' (Installed).lnk'
 $links = @((Join-Path $DesktopDirectory $linkName), (Join-Path $MenuDirectory $linkName))
 $exeName = ([char]0x65F6).ToString() + [char]0x5E8F + '.exe'
@@ -47,7 +47,7 @@ if ($Action -eq 'Install') {
   foreach ($link in $links) {
     AssertPlainPath $link
     if (Test-Path -LiteralPath $link) {
-      $target = $shell.CreateShortcut($link).TargetPath
+      $target = [Dayweave.ShellLink]::Target($link)
       if (-not $target.StartsWith($InstallRoot + '\', [StringComparison]::OrdinalIgnoreCase)) { throw "Shortcut belongs to another application: $link" }
     }
   }
@@ -62,11 +62,7 @@ if ($Action -eq 'Install') {
   @{ id=$package.id; root=$destination; links=$links } | ConvertTo-Json | Set-Content -LiteralPath $marker -Encoding UTF8
   foreach ($link in $links) {
     [IO.Directory]::CreateDirectory((Split-Path -Parent $link)) | Out-Null
-    $shortcut = $shell.CreateShortcut($link)
-    $shortcut.TargetPath = $exePath
-    $shortcut.WorkingDirectory = $destination
-    $shortcut.IconLocation = $shortcut.TargetPath + ',0'
-    $shortcut.Save()
+    [Dayweave.ShellLink]::Create($link, $exePath, $destination)
   }
   Write-Output "Installed: $destination"
   Write-Output 'Existing customized workspace and personal data were preserved. Open the desktop shortcut to continue.'
@@ -88,7 +84,7 @@ if ($Action -eq 'Install') {
   }
   foreach ($link in $links) {
     AssertPlainPath $link
-    if ((Test-Path -LiteralPath $link) -and ($shell.CreateShortcut($link).TargetPath -eq (Join-Path $destination $exeName))) { Remove-Item -LiteralPath $link }
+    if ((Test-Path -LiteralPath $link) -and ([Dayweave.ShellLink]::Target($link) -eq $exePath)) { Remove-Item -LiteralPath $link }
   }
   # Delete only empty directories; unexpected or modified files always survive.
   Remove-Item -LiteralPath $marker

@@ -5,23 +5,22 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-test('Windows installer verifies payload, creates real shortcuts, preserves modified files and user data', {skip:process.platform!=='win32'},()=>{
+test('Windows installer verifies payload, creates real shortcuts, preserves modified files and user data', {skip:process.platform!=='win32'},t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'shixu-install-'));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
  const bundle=path.join(root,'bundle'),install=path.join(root,'programs'),desktop=path.join(root,'desktop'),menu=path.join(root,'menu');
  fs.mkdirSync(path.join(bundle,'desktop'),{recursive:true});
  fs.copyFileSync(new URL('../desktop/install.ps1',import.meta.url),path.join(bundle,'desktop/install.ps1'));
+ fs.copyFileSync(new URL('../desktop/ShellLink.cs',import.meta.url),path.join(bundle,'desktop/ShellLink.cs'));
  fs.writeFileSync(path.join(bundle,'时序.exe'),'fixture');fs.writeFileSync(path.join(bundle,'modified.txt'),'original');
- const files=['desktop/install.ps1','时序.exe','modified.txt'].map(name=>({path:name,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(bundle,name))).digest('hex')}));
+ const files=['desktop/install.ps1','desktop/ShellLink.cs','时序.exe','modified.txt'].map(name=>({path:name,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(bundle,name))).digest('hex')}));
  fs.writeFileSync(path.join(bundle,'package-manifest.json'),JSON.stringify({id:'Shixu-test',files}));
  const run=action=>spawnSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(bundle,'desktop/install.ps1'),'-Action',action,'-InstallRoot',install,'-DesktopDirectory',desktop,'-MenuDirectory',menu],{encoding:'utf8',windowsHide:true});
  fs.writeFileSync(path.join(bundle,'时序.exe'),'corrupted');let r=run('Install');assert.notEqual(r.status,0);assert.ok(!fs.existsSync(install));
  fs.writeFileSync(path.join(bundle,'时序.exe'),'fixture');r=run('Install');
- if(r.status!==0){
-  const diagnostic=spawnSync('powershell.exe',['-NoProfile','-Command',"[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); Write-Output ('Codepage: '+[Text.Encoding]::Default.CodePage); $shell=New-Object -ComObject WScript.Shell; foreach($target in @($env:SHIXU_TEST_TARGET,($env:WINDIR+'\\notepad.exe'))) { try { $link=$shell.CreateShortcut($env:SHIXU_TEST_LINK); $link.TargetPath=$target; Write-Output ('Accepted: '+$target) } catch { Write-Output ('Rejected: '+$target+' : '+$_.Exception.Message) } }"],{encoding:'utf8',windowsHide:true,env:{...process.env,SHIXU_TEST_TARGET:path.join(install,'Shixu-test','时序.exe'),SHIXU_TEST_LINK:path.join(root,'diagnostic.lnk')}});
-  assert.fail(r.stdout+r.stderr+'\n'+diagnostic.stdout+diagnostic.stderr);
- }
+ assert.equal(r.status,0,r.stdout+r.stderr);
  const target=path.join(install,'Shixu-test');assert.ok(fs.existsSync(path.join(desktop,'时序 (Installed).lnk')));
- const check=spawnSync('powershell.exe',['-NoProfile','-Command',"[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); $link=(New-Object -ComObject WScript.Shell).CreateShortcut($env:SHIXU_TEST_LINK); Write-Output $link.TargetPath"],{encoding:'utf8',windowsHide:true,env:{...process.env,SHIXU_TEST_LINK:path.join(desktop,'时序 (Installed).lnk')}});
+ const check=spawnSync('powershell.exe',['-NoProfile','-Command',"[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); Add-Type -Path $env:SHIXU_TEST_HELPER; Write-Output ([Dayweave.ShellLink]::Target($env:SHIXU_TEST_LINK))"],{encoding:'utf8',windowsHide:true,env:{...process.env,SHIXU_TEST_HELPER:path.join(bundle,'desktop/ShellLink.cs'),SHIXU_TEST_LINK:path.join(desktop,'时序 (Installed).lnk')}});
  assert.equal(check.status,0,check.stderr);assert.equal(check.stdout.trim(),path.join(target,'时序.exe'));
  assert.notEqual(run('Install').status,0,'reinstall must not overwrite');
  fs.writeFileSync(path.join(target,'modified.txt'),'user changed');fs.writeFileSync(path.join(target,'unknown.txt'),'keep');
