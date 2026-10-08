@@ -36,6 +36,10 @@ SQLite 备份包含所有账户及聊天；Harness 的额外原始日志仍留�
 
 ## 再启用 Harness
 
+已发布镜像的版本，在当前阿里云服务器执行 `cd /opt/dayweave`、`git pull --ff-only`、`bash deploy/install-harness-image.sh`。脚本从本仓库相应 GitHub Release 下载 `dayweave-harness-版本.tar.gz`，核对 SHA256，导入 Docker 并检查应用版本及 Harness 可用性，最后调用备份升级脚本。下载失败或镜像检查失败不会停止现有服务；下载文件保存在 `/opt/dayweave-images`。首次下载约 600 MB；不需要服务器端编译。没有发布镜像的版本会下载失败，可使用下文的自行构建流程。
+
+Docker 镜像是装好程序与运行环境的模板；下载的 `.tar.gz` 是这个模板的压缩包，运行后产生容器。个人账号、SQLite 数据库、AI 密钥和对话保存在独立的 `/app/data` 数据卷里，不随公开镜像发布。Harness 是调用用户配置模型并执行时序工具的引擎，镜像没有内置 DeepSeek 模型权重或免费 API 额度。
+
 先确认注册、独立空间和普通 API 均可正常使用。内存充足的构建机器可以执行：
 
 ```bash
