@@ -15,7 +15,11 @@ test('Windows installer verifies payload, creates real shortcuts, preserves modi
  fs.writeFileSync(path.join(bundle,'package-manifest.json'),JSON.stringify({id:'Shixu-test',files}));
  const run=action=>spawnSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(bundle,'desktop/install.ps1'),'-Action',action,'-InstallRoot',install,'-DesktopDirectory',desktop,'-MenuDirectory',menu],{encoding:'utf8',windowsHide:true});
  fs.writeFileSync(path.join(bundle,'时序.exe'),'corrupted');let r=run('Install');assert.notEqual(r.status,0);assert.ok(!fs.existsSync(install));
- fs.writeFileSync(path.join(bundle,'时序.exe'),'fixture');r=run('Install');assert.equal(r.status,0,r.stdout+r.stderr);
+ fs.writeFileSync(path.join(bundle,'时序.exe'),'fixture');r=run('Install');
+ if(r.status!==0){
+  const diagnostic=spawnSync('powershell.exe',['-NoProfile','-Command',"[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); Write-Output ('Codepage: '+[Text.Encoding]::Default.CodePage); $shell=New-Object -ComObject WScript.Shell; foreach($target in @($env:SHIXU_TEST_TARGET,($env:WINDIR+'\\notepad.exe'))) { try { $link=$shell.CreateShortcut($env:SHIXU_TEST_LINK); $link.TargetPath=$target; Write-Output ('Accepted: '+$target) } catch { Write-Output ('Rejected: '+$target+' : '+$_.Exception.Message) } }"],{encoding:'utf8',windowsHide:true,env:{...process.env,SHIXU_TEST_TARGET:path.join(install,'Shixu-test','时序.exe'),SHIXU_TEST_LINK:path.join(root,'diagnostic.lnk')}});
+  assert.fail(r.stdout+r.stderr+'\n'+diagnostic.stdout+diagnostic.stderr);
+ }
  const target=path.join(install,'Shixu-test');assert.ok(fs.existsSync(path.join(desktop,'时序 (Installed).lnk')));
  const check=spawnSync('powershell.exe',['-NoProfile','-Command',"[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); $link=(New-Object -ComObject WScript.Shell).CreateShortcut($env:SHIXU_TEST_LINK); Write-Output $link.TargetPath"],{encoding:'utf8',windowsHide:true,env:{...process.env,SHIXU_TEST_LINK:path.join(desktop,'时序 (Installed).lnk')}});
  assert.equal(check.status,0,check.stderr);assert.equal(check.stdout.trim(),path.join(target,'时序.exe'));

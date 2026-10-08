@@ -20,6 +20,7 @@ try{
  desktop=await electron.launch(options);let page=await desktop.firstWindow();
  await page.getByRole('textbox',{name:'密码',exact:true}).waitFor({timeout:150000});
  const password=/初始密码：([^\r\n]+)/.exec(fs.readFileSync(path.join(profile,'data/bootstrap.txt'),'utf8'))[1];
+ await page.locator('#login-form input[name=remember]').check();
  await page.getByRole('textbox',{name:'密码',exact:true}).fill(password);await page.getByRole('button',{name:/进入我的空间/}).click();await page.locator('#nav').waitFor();
  const preferences=await desktop.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences());
  assert.equal(preferences.nodeIntegration,false);assert.equal(preferences.contextIsolation,true);assert.equal(preferences.sandbox,true);

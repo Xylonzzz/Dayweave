@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import crypto from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {openStorage} from '../storage.mjs';
 
 test('legacy owner migration, invitation registration, session choices and cross-account isolation',async t=>{
- const home=fs.mkdtempSync(path.resolve('test-output/accounts-'));
+ const home=fs.mkdtempSync(path.join(os.tmpdir(),'shixu-accounts-'));
  const password='Account-test-password-123',salt='legacy-salt',hash=crypto.scryptSync(password,salt,64).toString('hex');
  const oldToken='ab'.repeat(32),digest=crypto.createHash('sha256').update(oldToken).digest('hex');
  const state={revision:7,courses:[],tasks:[{id:'same-task',title:'原来的任务',kind:'project',status:'todo',minutes:60}],ideas:[],blocks:[],reviews:[],settings:{name:'原来的我',semesterStart:'2026-08-31',dayStart:'08:00',dayEnd:'22:00',quietStart:'23:00',quietEnd:'07:00',reminderMinutes:[30],courseReminder:15}};

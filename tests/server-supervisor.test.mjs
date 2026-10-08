@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { supervise } from '../server-supervisor.mjs';
 
 test('native supervisor restarts its own failed child and stops cleanly', async () => {
-  const root = fs.mkdtempSync(path.resolve('test-output', 'server-supervisor-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shixu-server-supervisor-'));
   fs.writeFileSync(path.join(root, 'fixture.mjs'), `import fs from 'node:fs';
     const file='count';const count=fs.existsSync(file)?Number(fs.readFileSync(file,'utf8'))+1:1;
     fs.writeFileSync(file,String(count));console.log('fixture launch '+count);
@@ -25,7 +26,7 @@ test('native supervisor restarts its own failed child and stops cleanly', async 
 });
 
 test('native supervisor recovers a live backend with a failing health check', async () => {
-  const root = fs.mkdtempSync(path.resolve('test-output', 'server-health-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'shixu-server-health-'));
   fs.writeFileSync(path.join(root, 'fixture.mjs'), `import fs from 'node:fs';import http from 'node:http';
     const file='count';const count=fs.existsSync(file)?Number(fs.readFileSync(file,'utf8'))+1:1;
     fs.writeFileSync(file,String(count));
