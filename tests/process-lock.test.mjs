@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { acquireProcessLock } from '../development/process-lock.mjs';
 
 test('reused PID does not block startup; a live owner and successor lock are preserved', () => {
-  const folder = fs.mkdtempSync(path.resolve('test-output', 'process-lock-'));
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'shixu-process-lock-'));
   const file = path.join(folder, 'supervisor.lock'), script = path.join(folder, 'supervisor.mjs');
   const probe = () => ({ started: 'new-process', command: 'C:\\Windows\\explorer.exe' });
   try {

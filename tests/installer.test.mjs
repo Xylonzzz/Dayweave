@@ -17,6 +17,8 @@ test('Windows installer verifies payload, creates real shortcuts, preserves modi
  fs.writeFileSync(path.join(bundle,'时序.exe'),'corrupted');let r=run('Install');assert.notEqual(r.status,0);assert.ok(!fs.existsSync(install));
  fs.writeFileSync(path.join(bundle,'时序.exe'),'fixture');r=run('Install');assert.equal(r.status,0,r.stdout+r.stderr);
  const target=path.join(install,'Shixu-test');assert.ok(fs.existsSync(path.join(desktop,'时序 (Installed).lnk')));
+ const check=spawnSync('powershell.exe',['-NoProfile','-Command',"[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); $link=(New-Object -ComObject WScript.Shell).CreateShortcut($env:SHIXU_TEST_LINK); Write-Output $link.TargetPath"],{encoding:'utf8',windowsHide:true,env:{...process.env,SHIXU_TEST_LINK:path.join(desktop,'时序 (Installed).lnk')}});
+ assert.equal(check.status,0,check.stderr);assert.equal(check.stdout.trim(),path.join(target,'时序.exe'));
  assert.notEqual(run('Install').status,0,'reinstall must not overwrite');
  fs.writeFileSync(path.join(target,'modified.txt'),'user changed');fs.writeFileSync(path.join(target,'unknown.txt'),'keep');
  const profile=path.join(root,'profile');fs.mkdirSync(profile);fs.writeFileSync(path.join(profile,'data.txt'),'private');

@@ -29,6 +29,7 @@ $shell = New-Object -ComObject WScript.Shell
 $linkName = ([char]0x65F6).ToString() + [char]0x5E8F + ' (Installed).lnk'
 $links = @((Join-Path $DesktopDirectory $linkName), (Join-Path $MenuDirectory $linkName))
 $exeName = ([char]0x65F6).ToString() + [char]0x5E8F + '.exe'
+[string]$exePath = Join-Path $destination $exeName
 function PackagePath([string]$Base, [string]$Name) {
   if ([IO.Path]::IsPathRooted($Name) -or $Name.Contains(':') -or $Name.Split('/\'.ToCharArray()) -contains '..') { throw 'Invalid manifest path' }
   $result = FullPath (Join-Path $Base $Name)
@@ -62,7 +63,7 @@ if ($Action -eq 'Install') {
   foreach ($link in $links) {
     [IO.Directory]::CreateDirectory((Split-Path -Parent $link)) | Out-Null
     $shortcut = $shell.CreateShortcut($link)
-    $shortcut.TargetPath = Join-Path $destination $exeName
+    $shortcut.TargetPath = $exePath
     $shortcut.WorkingDirectory = $destination
     $shortcut.IconLocation = $shortcut.TargetPath + ',0'
     $shortcut.Save()
