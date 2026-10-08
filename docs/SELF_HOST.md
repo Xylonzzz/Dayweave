@@ -1,6 +1,6 @@
 # 自托管：自己的设备、腾讯云、阿里云
 
-时序运行在 Node.js 上，默认使用 SQLite，也支持 MySQL 5.7，不依赖特定云平台。前端、接口和后台提醒在同一个服务；一套实例是一个个人空间。其他人可独立部署，配置自己的 AI API。已有 Windows/MySQL 环境见 [原生部署指南](WINDOWS_MYSQL.md)。
+时序运行在 Node.js 上，默认使用 SQLite，也支持 MySQL 5.7，不依赖特定云平台。前端、接口和后台提醒在同一个服务；一套实例支持多个独立个人账户，管理员可管理注册与邀请码。也可以各自部署并配置自己的 AI API。已有 Windows/MySQL 环境见 [原生部署指南](WINDOWS_MYSQL.md)，Alibaba Cloud Linux 3 + Nginx + IP HTTPS 见 [阿里云新手指南](ALIYUN.md)。
 
 ## 部署位置
 

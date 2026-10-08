@@ -28,6 +28,46 @@ Beginner-friendly architecture guide (Chinese): [architecture, data storage, com
 | **外观定制**：双主题色、自定义背景、主题预设、字体大小、深浅模式，以及玻璃、亚克力、云母等模拟材质。 | **Appearance:** two theme colors, custom backgrounds, saved presets, font sizing, light/dark modes, and simulated glass, acrylic, mica, and other materials. |
 | **Windows 桌面端**：独立窗口、安装程序和系统托盘；关闭窗口后可继续在后台运行。 | **Windows desktop:** a standalone window, installer, and system tray, with background operation after the window is closed. |
 
+## 整体架构 / Architecture
+
+时序是一套网页应用：前端负责显示，Node.js 后端处理账户、数据和 AI。后端既可以运行在自己的电脑，也可以运行在服务器。Windows EXE 包含 Electron 独立窗口和本地运行环境；GitHub 保存源码与发行包，不运行你的日程服务。
+
+Dayweave is a web application with a JavaScript UI and a Node.js backend for accounts, storage, and AI. The backend runs locally or on a server. The Windows installer bundles an Electron window and local runtime; GitHub hosts source and releases, not personal planner data.
+
+```mermaid
+flowchart TD
+    Desktop[Windows EXE / Electron] --> UI[HTML + CSS + JavaScript]
+    Browser[PC browser / Android PWA] --> UI
+    UI -->|Local HTTP + JSON| Local[Local Node.js + Express]
+    Local --> LocalDB[(Local SQLite)]
+    UI -->|HTTPS + JSON| Proxy[Nginx or Caddy]
+    Proxy --> Cloud[Server Node.js + Express / Docker]
+    Cloud --> CloudDB[(Server SQLite / optional MySQL)]
+    UI --> Offline[(Offline workspace / IndexedDB)]
+    Offline <-->|Optional HTTPS sync| Cloud
+    Local --> AI[Model API / DeepSeek Harness]
+    Cloud --> AI
+    AI --> Provider[Remote AI provider]
+```
+
+| 使用方式 / Mode | 数据位置 / Storage | 联网要求 / Connectivity |
+| --- | --- | --- |
+| 本机后端 / Local backend | 本机 SQLite；安装版独立空间默认位于 `%LOCALAPPDATA%\Shixu\data` / SQLite on your PC | 日程管理可本机运行；远程 AI 需要网络 / Local planning works without internet; remote AI needs connectivity |
+| 云端账户 / Cloud account | 服务器的持久数据卷，各账户独立 / Persistent server volume, scoped by account | 登录和保存需要连接服务器 / Server connection required |
+| 浏览器离线空间 / Browser offline workspace | 当前浏览器 IndexedDB / This browser's IndexedDB | 离线资源准备好后可离线编辑；可选择同步 / Offline editing after resources are cached; optional sync |
+
+三种数据空间相互独立，不会因为安装了 EXE 就自动合并。两台设备登录同一云端账户，访问同一份数据；离线空间通过差异预览与冲突处理同步课程、任务、灵感、日程、复盘和业务偏好。密码、AI 密钥和聊天记录不在日程同步范围。主题等设备外观主要使用 localStorage。
+
+These stores are separate. Devices signed into the same cloud account share server data. Offline workspaces synchronize planning records through previews and conflict resolution; passwords, API keys, and chat history are excluded. Device appearance preferences mainly use localStorage.
+
+公网使用 HTTPS（加密的 HTTP）传送 JSON 数据。Nginx/Caddy 是公网入口，转发到内部的应用端口。Docker 镜像是装好程序的模板，容器是运行中的程序，数据卷单独保存账户与日程。Harness 是调用远程模型和工具的引擎，不是本地 DeepSeek 模型；普通 AI 配置与 Harness 安装是两个步骤。
+
+Public traffic uses HTTPS and JSON. Nginx/Caddy forwards requests to the internal app port. A Docker image packages the program, a container runs it, and a volume persists user data. Harness orchestrates remote models and tools; it does not bundle model weights. Installing Harness and configuring your API are separate steps.
+
+GitHub、阿里云和 EXE 分别对应**代码与发行包、在线运行实例、电脑上的安装版本**。推送代码不会自动升级后两者；云端需更新容器，电脑需安装新版本。完整的存储、协议、安全与定制开发说明见 [架构指南](docs/ARCHITECTURE_GUIDE_ZH.md)。
+
+GitHub, your cloud server, and your EXE represent **source/releases, a running deployment, and an installed desktop version**. Pushing source does not upgrade either installation. See the [detailed architecture guide](docs/ARCHITECTURE_GUIDE_ZH.md).
+
 ## 本地启动 / Run locally
 
 安装 **Node.js 24 或更高版本** 与 Git，然后执行：
@@ -107,12 +147,28 @@ Caddy 提供 HTTPS，数据保存在持久化卷。Android 可通过 HTTPS 网�
 
 Caddy provides HTTPS, and application data is stored in a persistent volume. Android users can install the PWA from the HTTPS site. Local workspace synchronization is optional: preview and sync manually first, then enable foreground automatic sync if desired.
 
+### 阿里云从哪里开始 / Alibaba Cloud quick path
+
+使用 Alibaba Cloud Linux 3 时，可按 [新手教程](docs/ALIYUN.md) 逐步操作：
+
+1. 准备服务器和公网 IP，在安全组允许 80/443；3088 只供服务器内部使用。
+2. 安装 Docker/Nginx，下载发行页的 Harness 镜像并核对 SHA256；小服务器不编译引擎。
+3. 启动容器，把 SQLite 放在独立数据卷，检查 `/healthz`。
+4. 配置 Nginx、IP HTTPS 证书及自动续期，确认手机和电脑可以打开登录页。
+5. 修改初始密码、设置朋友注册邀请、填自己的模型 API，并验证同步和 AI。
+
+On Alibaba Cloud Linux 3: open ports 80/443, install Docker/Nginx, verify and load a released image, start the app with persistent storage, configure HTTPS and renewal, then set up accounts and your own model API. The [walkthrough](docs/ALIYUN.md) explains each command and includes upgrades. All server addresses in documentation are placeholders.
+
 - [自托管指南 / Self-hosting](docs/SELF_HOST.md)
-- [阿里云部署准备 / Alibaba Cloud setup](docs/ALIYUN.md)
+- [阿里云新手教程：IP HTTPS、Harness、账户与升级 / Alibaba Cloud walkthrough](docs/ALIYUN.md)
 - [离线模式 / Local mode](docs/LOCAL_MODE.md)
 - [同步与恢复 / Sync and recovery](docs/MANUAL_SYNC.md)
 
 ## 技术栈与目录 / Stack and source layout
+
+主要开发语言是 JavaScript（ES Modules），页面使用 HTML 和 CSS；部署脚本使用 Bash/PowerShell。Node.js 提供运行环境，npm 安装依赖，Git 管理源码，GitHub 发布代码与安装包。electron-builder + NSIS 构建 Windows 安装包；Node.js Test Runner 和 Playwright 验证后端与界面。Docker 用于云端封装和 AI 定制的隔离测试，日常本机使用不需要安装它。
+
+The primary language is JavaScript (ES Modules), with HTML/CSS and Bash/PowerShell deployment scripts. Node.js/npm run the app and install dependencies; Git/GitHub manage source and releases. electron-builder/NSIS package Windows installers, and Node.js Test Runner/Playwright verify the backend and UI. Docker packages cloud deployments and isolates customization tests.
 
 | 目录 / Path | 用途 / Purpose |
 | --- | --- |
@@ -144,6 +200,10 @@ UI tests require the configured browser environment, currently Windows Edge. Tes
 - 关闭窗口后的后台运行不代表电脑休眠或关机后仍可运行。 / Background operation after closing the window does not continue through computer sleep or shutdown.
 
 ## 贡献与许可 / Contributing and licensing
+
+发布前执行 `npm run check:public -- --history`，检查工作区及可发布分支/标签中的明显泄露；GitHub Actions 也执行此检查。规则覆盖常见 API 密钥、私钥、个人目录、数据文件和文档中的非示例 IP，保留公开仓库归属与提交作者信息。自动检查不能识别所有个人内容，提交前仍需审查 diff；真实地址、密钥和数据只保存在自己的部署配置与数据目录。
+
+Before publishing, run `npm run check:public -- --history`. CI also checks common secrets, private files, personal paths, and non-example IPs in documentation. Repository ownership and commit authors remain public. Automated rules cannot detect every personal detail; review your diff and keep real configuration and user data outside version control.
 
 欢迎通过 [Issues](https://github.com/Xylonzzz/Dayweave/issues) 提交问题与建议，通过 Pull Request 提交改进。请描述复现步骤或改动目的，附上相关验证结果，不要提交个人数据、API 密钥或构建产物。
 

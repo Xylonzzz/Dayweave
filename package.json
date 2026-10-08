@@ -11,7 +11,8 @@
     "backup:local": "node backup-local.mjs",
     "build:windows": "node desktop/build.mjs",
     "build:installer": "node desktop/build-installer.mjs",
-    "check:server": "node server-doctor.mjs"
+    "check:server": "node server-doctor.mjs",
+    "check:public": "node check-public.mjs"
   },
   "engines": {
     "node": ">=22.2.0"
