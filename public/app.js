@@ -1,3 +1,4 @@
+import {accountCard,setupRegistration,setupAccountLogin} from './accounts-ui.mjs';
 import './color-inputs.mjs';
 import {startAutoSync} from './auto-sync.mjs';
 import {syncMarkup,setupManualSync} from './sync-ui.mjs';
@@ -19,21 +20,27 @@ const timeLabel = d => new Date(d).toLocaleTimeString('en-GB', { timeZone:'Asia/
 const localInput = d => d ? `${new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(d))}T${timeLabel(d)}` : '';
 const iso = value => value ? new Date(`${value}:00+08:00`).toISOString() : '';
 const weekdays = ['一','二','三','四','五','六','日'];
+let accountInfo=null,sessionEpoch=0;
 let state, providers = [], page = location.hash.slice(1) || 'today', taskFilter = 'all', saving = false, toastTimer, draft, activeAI;
 const labels = {customize:'定制我的工具',today:'今日概览',week:'课表与日程',tasks:'作业与项目',ideas:'灵感收件箱',reviews:'复盘',quadrants:'四象限',assistant:'AI 时间管家',settings:'偏好与 AI 设置'};
 let dataMode=localStorage.getItem('shixu-data-mode')==='local'?'local':'server';
 const localMode=()=>dataMode==='local';
 async function api(url, options = {}) {
+  const epoch=sessionEpoch;
   if(localMode())return localAPI(url,options);
-  const response = await fetch(url, { ...options, headers: options.body instanceof FormData ? {} : { 'Content-Type':'application/json', ...options.headers } });
+  const response = await fetch(url, { ...options, headers: { ...(options.body instanceof FormData?{}:{'Content-Type':'application/json'}),...options.headers,...(accountInfo&& !['/api/login','/api/register','/api/auth/options','/api/me'].includes(url)?{'X-Shixu-Account':accountInfo.id}:{}) } });
   const data = await response.json();
+  if(epoch!==sessionEpoch)throw Error('账户已切换，请重新操作');
   if (!response.ok) { if (response.status === 401) showLogin(); throw Error(data.error || '请求失败'); }
   return data;
 }
 const post = (url, body = {}) => api(url, {method:'POST',body:JSON.stringify(body)});
 function toast(message) { $('#toast').textContent = message; $('#toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').hidden = true, 6000); }
-function showLogin() { syncIdeaBubbles([]); $('#shell').hidden = true; $('#login').hidden = false; }
-async function load() { try { if(localMode())await initializeLocal(); [state, providers] = await Promise.all([api('/api/state'),api('/api/providers')]); $('#login').hidden = true; $('#shell').hidden = false; render(); } catch(e) { if (!$('#login').hidden) return; toast(e.message); } }
+function showLogin() { sessionEpoch++;state=null;accountInfo=null;providers=[];conversationStore=null;chatMessages=[];chatUndo='';selectedThread='';selectedProject='';chatInput='';chatBusy=false;chatController?.abort();closeModal();$('#modal-content').replaceChildren();$('#view').replaceChildren();syncIdeaBubbles([]); $('#shell').hidden = true; $('#login').hidden = false; }
+async function load() { try {
+  if(localMode()){await initializeLocal();accountInfo=null;}else{const me=await api('/api/me');if(accountInfo&&accountInfo.id!==me.id)showLogin();accountInfo=me;}
+  [state,providers]=await Promise.all([api('/api/state'),api('/api/providers')]);$('#login').hidden=true;$('#shell').hidden=false;render();
+ } catch(e) { if (!$('#login').hidden) return; toast(e.message); } }
 async function change(fn) {
   if (saving) throw Error('正在保存，请稍候');
   saving = true; $('#sync-status').textContent = '正在保存…';
@@ -178,7 +185,7 @@ function renderIdeas() {
 }
 function renderSettings() {
   const s = state.settings;
-  return `${heading('MAKE THIS SPACE YOURS','按你的习惯来。','作息、学期、AI 和提醒，都可以在这里调整。')}${localModeCard()}${syncMarkup(localMode())}<section class="card"><h2>定制我的工具</h2><p class="hint">让 AI 根据你的需求开发、测试和审查，通过后自动整合到自己的时序。</p><button class="quiet" data-page="customize">打开定制工作台 ↗</button></section>${appearanceCard()}${bubbleSettingsCard()}${navOrderCard()}<div class="settings-grid"><section class="card"><h2>基本偏好</h2><form id="preferences"><div class="form-grid"><label>怎么称呼你<input name="name" value="${esc(s.name)}" required maxlength="30"></label><label>第一教学周的周一<input name="semesterStart" type="date" value="${esc(s.semesterStart)}" required></label><label>最早安排时间<input name="dayStart" type="time" value="${s.dayStart}" required></label><label>最晚结束时间<input name="dayEnd" type="time" value="${s.dayEnd}" required></label><label>勿扰开始<input name="quietStart" type="time" value="${s.quietStart}" required></label><label>勿扰结束<input name="quietEnd" type="time" value="${s.quietEnd}" required></label><label class="full">截止提醒提前量（分钟，逗号分隔）<input name="reminderMinutes" value="${s.reminderMinutes.join(', ')}" required></label><label>课前提醒（分钟）<input name="courseReminder" type="number" min="0" max="120" value="${s.courseReminder}" required></label></div><p class="hint">当前统一使用北京时间。AI 会避开课表和已有安排，进一步偏好可在排程时输入。</p><div class="form-actions"><button class="primary small">保存偏好</button></div></form></section><div><section class="card"><div class="section-head"><h2>AI 接口</h2><button class="text-btn" data-action="new-provider">＋ 添加</button></div><p class="hint">兼容 OpenAI Chat Completions 和 Anthropic Messages 格式。密钥加密存放在服务端；留空不会覆盖旧密钥。</p>${providers.length ? providers.map(p=>`<div class="provider-row"><div class="row between"><strong>${esc(p.name)}</strong><div class="row"><button class="text-btn" data-action="test-provider" data-id="${esc(p.id)}">测试</button><button class="text-btn" data-action="edit-provider" data-id="${esc(p.id)}">编辑</button></div></div><p>${esc(p.model)} · ${esc(p.format)}</p><p>${esc(p.baseUrl)}</p></div>`).join('') : empty('还没有配置接口。添加后即可使用 AI 排程和课表识别。')}</section><section class="card"><h2>提醒与通知</h2><p class="hint">开启后由后台推送。部署到 HTTPS 后，在 Android Chrome 中添加到主屏幕，并允许通知。邮件备用渠道由部署环境配置。</p><div class="row wrap"><button class="quiet" data-action="enable-push">启用本设备通知</button><button class="quiet" data-action="test-push">发送测试提醒</button></div><p id="notification-status" class="hint" style="margin-top:14px">正在读取通知配置…</p></section>${serverCard()}<section class="card"><h2>数据与账号</h2><p class="hint">导出的 JSON 包含课表、任务和灵感，不包含密码、API 密钥或通知订阅。</p><div class="row wrap"><button class="quiet" data-action="export">导出备份</button><button class="quiet" data-action="restore">导入备份</button><button class="text-btn" data-action="previous-backup">下载本地 / 导入前恢复点</button><button class="quiet" data-action="password">修改密码</button><button class="text-btn" data-action="refresh">刷新同步</button></div></section></div></div>`;
+  return `${heading('MAKE THIS SPACE YOURS','按你的习惯来。','作息、学期、AI 和提醒，都可以在这里调整。')}${accountCard(accountInfo)}${localModeCard()}${syncMarkup(localMode())}<section class="card"><h2>定制我的工具</h2><p class="hint">让 AI 根据你的需求开发、测试和审查，通过后自动整合到自己的时序。</p><button class="quiet" data-page="customize">打开定制工作台 ↗</button></section>${appearanceCard()}${bubbleSettingsCard()}${navOrderCard()}<div class="settings-grid"><section class="card"><h2>基本偏好</h2><form id="preferences"><div class="form-grid"><label>怎么称呼你<input name="name" value="${esc(s.name)}" required maxlength="30"></label><label>第一教学周的周一<input name="semesterStart" type="date" value="${esc(s.semesterStart)}" required></label><label>最早安排时间<input name="dayStart" type="time" value="${s.dayStart}" required></label><label>最晚结束时间<input name="dayEnd" type="time" value="${s.dayEnd}" required></label><label>勿扰开始<input name="quietStart" type="time" value="${s.quietStart}" required></label><label>勿扰结束<input name="quietEnd" type="time" value="${s.quietEnd}" required></label><label class="full">截止提醒提前量（分钟，逗号分隔）<input name="reminderMinutes" value="${s.reminderMinutes.join(', ')}" required></label><label>课前提醒（分钟）<input name="courseReminder" type="number" min="0" max="120" value="${s.courseReminder}" required></label></div><p class="hint">当前统一使用北京时间。AI 会避开课表和已有安排，进一步偏好可在排程时输入。</p><div class="form-actions"><button class="primary small">保存偏好</button></div></form></section><div><section class="card"><div class="section-head"><h2>AI 接口</h2><button class="text-btn" data-action="new-provider">＋ 添加</button></div><p class="hint">兼容 OpenAI Chat Completions 和 Anthropic Messages 格式。密钥加密存放在服务端；留空不会覆盖旧密钥。</p>${providers.length ? providers.map(p=>`<div class="provider-row"><div class="row between"><strong>${esc(p.name)}</strong><div class="row"><button class="text-btn" data-action="test-provider" data-id="${esc(p.id)}">测试</button><button class="text-btn" data-action="edit-provider" data-id="${esc(p.id)}">编辑</button></div></div><p>${esc(p.model)} · ${esc(p.format)}</p><p>${esc(p.baseUrl)}</p></div>`).join('') : empty('还没有配置接口。添加后即可使用 AI 排程和课表识别。')}</section><section class="card"><h2>提醒与通知</h2><p class="hint">开启后由后台推送。部署到 HTTPS 后，在 Android Chrome 中添加到主屏幕，并允许通知。邮件备用渠道由部署环境配置。</p><div class="row wrap"><button class="quiet" data-action="enable-push">启用本设备通知</button><button class="quiet" data-action="test-push">发送测试提醒</button></div><p id="notification-status" class="hint" style="margin-top:14px">正在读取通知配置…</p></section>${serverCard()}<section class="card"><h2>数据与账号</h2><p class="hint">导出的 JSON 包含课表、任务和灵感，不包含密码、API 密钥或通知订阅。</p><div class="row wrap"><button class="quiet" data-action="export">导出备份</button><button class="quiet" data-action="restore">导入备份</button><button class="text-btn" data-action="previous-backup">下载本地 / 导入前恢复点</button><button class="quiet" data-action="password">修改密码</button><button class="text-btn" data-action="refresh">刷新同步</button></div></section></div></div>`;
 }
 function serverCard() {
   return `<section class="card"><h2>我的服务器</h2><p class="hint">当前服务地址</p><p style="overflow-wrap:anywhere">${esc(location.origin)}</p><p class="hint">支持自己的电脑、NAS 或云服务器。切换后使用新服务器的账号，数据需要单独导入；API 接口仍在上方配置。</p><button class="quiet" data-action="switch-server">切换服务器</button></section>`;
@@ -219,6 +226,7 @@ $('#theme-save').onclick=()=>{const name=$('#theme-preset-name').value.trim();if
 $('#theme-delete').onclick=()=>{const id=$('#theme-preset').value,themes=savedThemes();if(!themes.some(t=>t.id===id))return toast('请选择一个自己保存的主题');localStorage.setItem('shixu-theme-presets',JSON.stringify(themes.filter(t=>t.id!==id)));render();toast('已删除预设，当前外观保留');};
 form.querySelectorAll('[data-theme-pair]').forEach(button=>button.onclick=()=>{const [color,secondary]=button.dataset.themePair.split(',');window.shixuAppearance.set({...window.shixuAppearance.get(),color,secondary});render();});form.oninput=update;form.onchange=update;form.onsubmit=e=>e.preventDefault();$('#appearance-reset').onclick=()=>{window.shixuAppearance.reset();render();};}
 function setupSettings() {
+  setupRegistration({api,post,openModal,formHandler,toast,logout:()=>$('#logout').click()});
   setupAppearance();
   setupBubbleSettings();
   setupManualSync(async()=>{state=await api('/api/state');render();toast('同步完成，数据已保存在本地');});
@@ -337,7 +345,7 @@ $('#login-switch-server').onclick=switchServerForm;
 $('#new-task').onclick=()=>taskForm();$('#quick-idea').onclick=()=>ideaForm();
 $('#capture-start').onclick=captureForm;
 $('#logout').onclick=async()=>{try{await post('/api/logout');state=null;closeModal();showLogin();}catch(e){toast(e.message);}};
-formHandler('#login-form',async f=>{try{await post('/api/login',Object.fromEntries(f));$('#login-error').textContent='';$('#login-form [name=password]').value='';await load();}catch(e){$('#login-error').textContent=e.message;}});
+setupAccountLogin({api,post,openModal,closeModal,formHandler,onLogin:load,toast});
 window.addEventListener('hashchange',()=>{page=location.hash.slice(1)||'today';if(state)render();});
 window.addEventListener('online',()=>{if(state)load();});
 window.addEventListener('offline',()=>{if(state)$('#sync-status').textContent=localMode()?'离线 · 可在本地保存':'离线 · 暂不能保存';toast(localMode()?'网络已断开，可继续在本地使用':'网络已断开，恢复连接后再保存修改');});
@@ -384,10 +392,10 @@ function setupAssistant(){
   if(chatBusy)return;const message=String(f.get('message')).trim();if(!message)return;
   if(!selectedThread)await newConversation(false);
   if(!conversationStore)throw Error('请等待对话加载完成');
-  localStorage.setItem('providerId',f.get('providerId'));chatBusy=true;chatInput='';chatMessages.push({role:'user',content:message});chatController=new AbortController();const timer=setTimeout(()=>chatController.abort(),chatEngine==='harness'?190000:100000);render();
-  try{const r=await (chatEngine==='harness'?harnessChat:api)('/api/ai/chat',{method:'POST',body:JSON.stringify({engine:chatEngine,providerId:f.get('providerId'),threadId:selectedThread,message,chatRevision:conversationStore.revision,revision:state.revision}),signal:chatController.signal});state=r.state;conversationStore=r.workspace;selectConversation(selectedThread);}
-  catch(e){chatInput=message;chatMessages.push({role:'assistant',content:chatController.signal.aborted?'请求已停止。若修改恰好已保存，请刷新数据核对后再重试。':`未执行：${e.message}`});}
-  finally{clearTimeout(timer);chatBusy=false;try{await refreshConversations();}catch{}if(page==='assistant')render();}
+  const epoch=sessionEpoch,controller=new AbortController();localStorage.setItem('providerId',f.get('providerId'));chatBusy=true;chatInput='';chatMessages.push({role:'user',content:message});chatController=controller;const timer=setTimeout(()=>controller.abort(),chatEngine==='harness'?190000:100000);render();
+  try{const r=await (chatEngine==='harness'?harnessChat:api)('/api/ai/chat',{method:'POST',body:JSON.stringify({engine:chatEngine,providerId:f.get('providerId'),threadId:selectedThread,message,chatRevision:conversationStore.revision,revision:state.revision}),signal:controller.signal});state=r.state;conversationStore=r.workspace;selectConversation(selectedThread);}
+  catch(e){if(epoch===sessionEpoch){chatInput=message;chatMessages.push({role:'assistant',content:controller.signal.aborted?'请求已停止。若修改恰好已保存，请刷新数据核对后再重试。':`未执行：${e.message}`});}}
+  finally{clearTimeout(timer);if(epoch===sessionEpoch){chatBusy=false;try{await refreshConversations();}catch{}if(epoch===sessionEpoch&&page==='assistant')render();}}
  });
 }
 function conversationSidebar(){return `<aside class="chat-sidebar"><div class="row wrap"><button class="quiet" id="thread-new" ${chatBusy||localMode()?'disabled':''}>＋ 新建对话</button><button class="quiet" id="project-new" ${chatBusy||localMode()||!conversationStore?'disabled':''}>＋ 新建项目</button></div><label>搜索对话<input id="thread-search" placeholder="搜索标题"></label><label>项目<select id="project-filter" ${chatBusy?'disabled':''}><option value="">全部对话</option>${(conversationStore?.projects||[]).map(p=>opt(p.id,p.title,selectedProject)).join('')}</select></label>${selectedProject?'<button class="text-btn" id="project-edit">编辑项目</button>':''}<div class="thread-list">${(conversationStore?.threads||[]).filter(t=>!selectedProject||t.projectId===selectedProject).map(t=>`<div class="thread-row ${t.id===selectedThread?'selected':''}"><button data-thread="${t.id}" ${chatBusy?'disabled':''}>${esc(t.title)}</button><button data-thread-edit="${t.id}" aria-label="管理${esc(t.title)}" ${chatBusy?'disabled':''}>⋯</button></div>`).join('')||'<p class="hint">新建一个对话，开始整理想法。</p>'}</div><button class="text-btn" id="chat-refresh" ${chatBusy?'disabled':''}>刷新对话</button></aside>`;}
@@ -414,10 +422,11 @@ function chatText(value){
  return result+esc(text.slice(offset));
 }
 async function harnessChat(url,options){
- const response=await fetch(url,{...options,headers:{'Content-Type':'application/json'}});
+ const epoch=sessionEpoch;
+ const response=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(accountInfo?{'X-Shixu-Account':accountInfo.id}:{})}});
  if(!response.headers.get('Content-Type')?.includes('ndjson')){const data=await response.json();if(!response.ok)throw Error(data.error||'Harness 请求失败');return data;}
  const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='',result;
- try{while(true){const {value,done}=await reader.read();buffer+=decoder.decode(value,{stream:!done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines){if(!line.trim())continue;const event=JSON.parse(line);if(event.type==='error')throw Error(event.error);if(event.type==='result')result=event.data;if(event.type==='status'&&$('#harness-progress'))$('#harness-progress').textContent=event.text;if(event.type==='text'&&$('#harness-stream')){const output=$('#harness-stream');output.hidden=false;output.textContent+=event.text;}}if(done)break;}if(!result)throw Error('Harness 连接结束但未确认保存，请刷新核对');return result;}finally{reader.releaseLock();}
+ try{while(true){const {value,done}=await reader.read();buffer+=decoder.decode(value,{stream:!done});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines){if(epoch!==sessionEpoch)throw Error('账户已切换，请重新操作');if(!line.trim())continue;const event=JSON.parse(line);if(event.type==='error')throw Error(event.error);if(event.type==='result')result=event.data;if(event.type==='status'&&$('#harness-progress'))$('#harness-progress').textContent=event.text;if(event.type==='text'&&$('#harness-stream')){const output=$('#harness-stream');output.hidden=false;output.textContent+=event.text;}}if(done)break;}if(epoch!==sessionEpoch)throw Error('账户已切换，请重新操作');if(!result)throw Error('Harness 连接结束但未确认保存，请刷新核对');return result;}finally{reader.releaseLock();}
 }
 await load();
 fetch('/healthz').then(r=>r.json()).then(info=>{if(info.preview){const banner=document.createElement('div');banner.className='preview-banner';banner.setAttribute('role','status');banner.textContent='试运行空间 · 使用独立测试数据 · 不会同步到你的正式空间';document.body.prepend(banner);}}).catch(()=>{});

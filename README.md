@@ -88,9 +88,9 @@ Everyday planning does not require Docker. Source integration, candidate preview
 
 ## 自托管与同步 / Self-hosting and synchronization
 
-可部署到自己的电脑、NAS 或支持 Node.js / Docker 的服务器，包括阿里云。当前服务按**一个实例、一个个人空间**设计，不是支持公开注册的多用户平台。
+可部署到自己的电脑、NAS 或支持 Node.js / Docker 的服务器，包括阿里云。支持**邀请注册和独立个人账户**，管理员可切换注册方式；任务、对话和 AI 配置按账户隔离。登录时可以选择自动登录。已有单账户数据升级后保留。详见 [账户与云端升级](docs/ACCOUNTS_AND_CLOUD.md)。
 
-Deploy on your own computer, NAS, or a Node.js / Docker server, including Alibaba Cloud. The current design is **one instance, one personal workspace**, not a multi-user platform with public registration.
+Deploy on your own computer, NAS, or a Node.js / Docker server, including Alibaba Cloud. **Invitation registration and separate personal accounts** are supported, with optional automatic login. Tasks, conversations, and AI configurations are scoped to each account. Existing single-account data is preserved on upgrade. See [accounts and cloud upgrades](docs/ACCOUNTS_AND_CLOUD.md).
 
 使用 Docker 和 Caddy 部署时，配置 `.env` 中的 `SITE_DOMAIN`、`PUBLIC_ORIGIN`、`HOST` 和首次启动密码，设置域名解析并开放 80/443 端口，然后运行：
 

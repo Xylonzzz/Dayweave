@@ -86,6 +86,14 @@ test('MySQL 5.7: transactions, Unicode, ownership, API regression, conflicts and
   const responses = await Promise.all(['甲', '乙'].map(name => call('/api/state', 'PUT', { ...state, settings: { ...state.settings, name } })));
   assert.deepEqual(responses.map(r => r.status).sort(), [200, 409]);
   state = await (await call('/api/state')).json();
+  const invitation=await(await call('/api/registration')).json();
+  const registration=await call('/api/register','POST',{username:'mysqlfriend',password:'Friend-password-123',code:invitation.code});
+  assert.equal(registration.status,201);
+  const friendLogin=await fetch(origin+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:'mysqlfriend',password:'Friend-password-123',remember:true})});
+  const friendCookie=friendLogin.headers.get('set-cookie').split(';')[0];
+  const friendState=await(await fetch(origin+'/api/state',{headers:{Cookie:friendCookie}})).json();
+  assert.equal(friendState.tasks.length,0);assert.equal(friendState.revision,0);
+  assert.deepEqual(await(await fetch(origin+'/api/providers',{headers:{Cookie:friendCookie}})).json(),[]);
   const syncHeaders = { Origin: 'https://local.example', 'Content-Type': 'application/json', 'X-Shixu-Sync': '1' };
   const syncLogin = await fetch(origin + '/api/sync/v1/login', { method: 'POST', headers: syncHeaders, body: JSON.stringify({ username: 'student', password: 'Integration-test-password-123' }) });
   assert.equal(syncLogin.status, 200);

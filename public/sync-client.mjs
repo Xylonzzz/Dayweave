@@ -10,7 +10,7 @@ export async function syncRequest(origin,route,body,token){
 export async function connectServer(address,username,password){
  const origin=serverAddress(address),meta=await syncRequest(origin,'/meta');
  if(meta.app!=='shixu'||meta.protocol!==1||typeof meta.instanceId!=='string')throw Error('目标不是兼容的时序同步服务器');
- const login=await syncRequest(origin,'/login',{username,password});if(login.instanceId!==meta.instanceId||!(/^[a-f0-9]{64}$/).test(login.token||''))throw Error('服务器身份或授权格式无效，请重试');
+ const login=await syncRequest(origin,'/login',{username,password});if((meta.multiAccount?login.serverInstanceId:login.instanceId)!==meta.instanceId||typeof login.instanceId!=='string'||!(/^[a-f0-9]{64}$/).test(login.token||''))throw Error('服务器身份或授权格式无效，请重试');
  await connectSyncProfile(origin,login);return origin;
 }
 export async function previewSync(origin){

@@ -45,6 +45,19 @@ test('Harness HTTP conversation streams, commits validated state and supports un
   assert.ok(result,JSON.stringify(events));assert.ok(events.some(e=>e.type==='text'));assert.equal(result.state.tasks[0].title,'Harness 端到端作业');assert.match(result.state.tasks[0].notes,/暂估/);
   const saved=await(await request('/api/state')).json();assert.equal(saved.tasks[0].id,result.state.tasks[0].id);
   const undone=await(await request('/api/ai/chat/undo',{id:result.undoId})).json();assert.equal(undone.tasks.length,0);
+  const ownerCookie=cookie,policy=await(await request('/api/registration')).json();
+  assert.equal((await request('/api/register',{username:'harnessfriend',password:'Friend-password-123',code:policy.code})).status,201);
+  const friendLogin=await request('/api/login',{username:'harnessfriend',password:'Friend-password-123'});cookie=friendLogin.headers.get('set-cookie').split(';')[0];
+  const me=await(await request('/api/me')).json();assert.deepEqual(await(await request('/api/providers')).json(),[]);
+  const friendProvider=await(await request('/api/providers',{name:'friend fixture',baseUrl:'https://example.com/v1',model:'test',format:'openai',apiKey:'friend-test-only'})).json();
+  const friendDB=new DatabaseSync(path.join(dataDir,'planner.sqlite')),key=`user:${me.id}:providers`,stored=JSON.parse(friendDB.prepare('SELECT value FROM kv WHERE key=?').get(key).value);
+  stored[0].baseUrl=`http://127.0.0.1:${upstream.address().port}/v1`;friendDB.prepare('UPDATE kv SET value=? WHERE key=?').run(JSON.stringify(stored),key);friendDB.close();
+  const friendWorkspace=await(await request('/api/conversations',{revision:0,action:'createThread',title:'独立对话',projectId:''})).json();
+  const friendResponse=await request('/api/ai/chat',{engine:'harness',providerId:friendProvider.id,threadId:friendWorkspace.selectedId,chatRevision:friendWorkspace.revision,message:'创建一份作业',revision:0});
+  const friendEvents=(await friendResponse.text()).trim().split('\n').map(JSON.parse);assert.ok(friendEvents.some(e=>e.type==='result'),JSON.stringify(friendEvents));
+  assert.ok(fs.existsSync(path.join(dataDir,'users',me.id,'harness')));
+  cookie=ownerCookie;assert.equal((await(await request('/api/state')).json()).tasks.length,0,'friend Harness cannot change the original owner state');
+  assert.equal((await(await request('/api/conversations')).json()).threads.length,1,'friend conversation is not visible to owner');
  }finally{server.kill();upstream.closeAllConnections();await new Promise(resolve=>upstream.close(resolve));}
 });
 

@@ -1,4 +1,6 @@
-FROM node:24-bookworm-slim
+ARG NODE_IMAGE=node:24-bookworm-slim
+FROM ${NODE_IMAGE}
+USER root
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev

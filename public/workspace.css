@@ -13,3 +13,5 @@
 
 #manual-sync{overflow-wrap:anywhere}#manual-sync details{margin:12px 0}#manual-sync .sync-conflict{padding:14px;margin:12px 0;border:1px solid var(--line);border-radius:12px}#manual-sync input[type=checkbox]{width:20px;vertical-align:middle}#manual-sync h4{margin-top:20px}
 .preview-banner{position:sticky;top:0;z-index:1000;padding:12px 20px;background:#604614;color:#fff;text-align:center;font-size:16px;}
+
+.account-check{display:flex;align-items:center;gap:10px;margin:12px 0}.account-check input[type=checkbox]{width:18px;height:18px;margin:0;flex:none;accent-color:var(--accent)}

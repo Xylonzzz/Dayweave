@@ -27,7 +27,7 @@ test('desktop student flow and mobile layout',async({page})=>{
   await page.getByLabel('想到什么了？').fill('把项目调试过程做成一张可复用的检查表。');
   await page.getByLabel('关联项目（可选）').fill('项目原型');
   await page.getByRole('button',{name:'保存灵感',exact:true}).click();
-  await expect(page.getByText('把项目调试过程做成一张可复用的检查表。')).toBeVisible();
+  await expect(page.locator('#view').getByText('把项目调试过程做成一张可复用的检查表。')).toBeVisible();
   await page.locator('nav [data-page="week"]').click();
   await page.getByRole('button',{name:'＋ 课程',exact:true}).click();
   await page.getByLabel('课程名称').fill('高等数学');
@@ -595,4 +595,32 @@ test('automatic sync is opt-in, shows pending changes, runs from app and pauses 
   const duplicate=await page.evaluate(async()=>{const {previewSync,retrySync}=await import('/sync-client.mjs');const {prepareSync}=await import('/local-store.mjs');const p=await previewSync('http://localhost:3120');await prepareSync(p.origin,p,p.local);const replies=await Promise.all([retrySync(p.origin),retrySync(p.origin)]);return replies.map(r=>r.revision);});expect(duplicate[0]).toBe(duplicate[1]);
   await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();await page.locator('#manual-sync').screenshot({path:'test-output/auto-sync-mobile.png'});
  }finally{remote.kill();}
+});
+
+test('invitation registration and optional automatic login on mobile',async({page,browser})=>{
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const admin=await browser.newContext();
+ try{
+  const login=await admin.request.post('http://localhost:3098/api/login',{data:{username:'student',password:'UI-test-password-123'}});expect(login.ok()).toBeTruthy();
+  const policy=await(await admin.request.get('http://localhost:3098/api/registration')).json();
+  await page.setViewportSize({width:390,height:844});await page.goto('/');
+  await page.getByRole('button',{name:'创建个人账户',exact:true}).click();
+  const form=page.locator('#register-form'),username='friend_'+Date.now();
+  await form.getByLabel('用户名',{exact:true}).fill(username);
+  await form.getByLabel('密码',{exact:true}).fill('Friend-test-password-123');
+  await form.getByLabel('再次输入密码').fill('Friend-test-password-123');
+  await form.getByLabel('邀请码').fill(policy.code);
+  await form.getByRole('button',{name:'注册并进入我的空间'}).click();
+  await expect(page.locator('#shell')).toBeVisible();await expect(page.locator('#task-count')).toHaveText('0');
+  let cookie=(await page.context().cookies()).find(c=>c.name==='session');expect(cookie.expires).toBe(-1);
+  await page.locator('.settings-nav').click();await expect(page.locator('#view')).toContainText(username);
+  await expect(page.locator('#manage-registration')).toHaveCount(0);
+  await page.locator('#account-logout').click();await expect(page.locator('#login')).toBeVisible();
+  await page.locator('#login-form [name=password]').fill('Friend-test-password-123');
+  await page.locator('#login-form').getByLabel('自动登录（30 天）').check();await page.getByRole('button',{name:/进入我的空间/}).click();
+  await expect(page.locator('#shell')).toBeVisible();
+  cookie=(await page.context().cookies()).find(c=>c.name==='session');expect(cookie.expires).toBeGreaterThan(Date.now()/1000+29*86400);
+  await page.reload();await expect(page.locator('#shell')).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();expect(errors).toEqual([]);
+ }finally{await admin.close();}
 });

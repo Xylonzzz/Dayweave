@@ -1,0 +1,30 @@
+ARG NODE_IMAGE=public.ecr.aws/docker/library/node:24-bookworm-slim
+FROM ${NODE_IMAGE} AS harness-build
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends git python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/harness
+RUN git init && git remote add origin https://github.com/deepseek-ai/deepseek-harness.git \
+    && git fetch --depth=1 origin 47f943859bef60e4160492346772ded9b24f765a \
+    && git checkout --detach FETCH_HEAD \
+    && test "$(git rev-parse HEAD)" = "47f943859bef60e4160492346772ded9b24f765a"
+ENV CI=true NODE_OPTIONS=--max-old-space-size=4096
+RUN npm install --global pnpm@11.7.0 --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --child-concurrency=1 --network-concurrency=8 --fetch-timeout=600000
+RUN pnpm run build:lib && rm -rf .git
+
+FROM ${NODE_IMAGE}
+USER root
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+COPY --from=harness-build /opt/harness /opt/harness
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3088 HARNESS_ROOT=/opt/harness SHIXU_DEVELOPMENT=disabled
+RUN node --input-type=module -e "import {harnessStatus} from './harness/runtime.mjs'; const s=harnessStatus(process.env.HARNESS_ROOT); if(!s.available)throw Error(s.error);"
+EXPOSE 3088
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3088)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "server.mjs"]
