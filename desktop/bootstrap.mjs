@@ -4,6 +4,8 @@ import crypto from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {DatabaseSync,backup} from 'node:sqlite';
 import {pathToFileURL} from 'node:url';
+const workspaceTools=fs.existsSync(path.resolve(import.meta.dirname,'../development/workspace.mjs'))?'../development/workspace.mjs':'../app/development/workspace.mjs';
+const {digest}=await import(workspaceTools);
 
 export function locations(bundle,env=process.env){
  const home=path.resolve(env.SHIXU_DESKTOP_HOME||path.join(env.LOCALAPPDATA||env.HOME,'Shixu'));
@@ -14,16 +16,30 @@ function config(p){const file=path.join(p.home,'desktop.json');fs.mkdirSync(p.ho
 export async function health(url){try{const r=await fetch(url+'/healthz',{signal:AbortSignal.timeout(1200)});if(!r.ok)return null;const data=await r.json();return data.app==='shixu'&&data.status==='ok'?data:null;}catch{return null;}}
 export function prepare(p){
  const settings=config(p),marker=path.join(p.workspace,'.desktop-ready.json');
- if(fs.existsSync(marker))return settings;
+ if(fs.existsSync(marker)){
+  const ready=JSON.parse(fs.readFileSync(marker)),version=JSON.parse(fs.readFileSync(path.join(p.bundle,'app/package.json'))).version;
+  if(ready.version===version)return settings;
+  const history=path.join(p.bundle,'app/desktop/release-baselines.json');
+  const baseline=ready.baseline||(fs.existsSync(history)?JSON.parse(fs.readFileSync(history))[ready.version]:null);
+  // Only an exact original source tree can be upgraded automatically. AI edits stay intact.
+  if(!baseline||JSON.stringify(digest(p.workspace))!==JSON.stringify(baseline))return settings;
+  const staging=path.join(p.home,'upgrade-'+crypto.randomUUID()),previous=path.join(p.home,'source-before-'+ready.version+'-'+Date.now());
+  fs.cpSync(path.join(p.bundle,'app'),staging,{recursive:true});
+  fs.writeFileSync(path.join(staging,'.desktop-ready.json'),JSON.stringify({version,at:new Date().toISOString(),baseline:digest(staging),previous}));
+  fs.renameSync(p.workspace,previous);
+  try{fs.renameSync(staging,p.workspace);}catch(error){fs.renameSync(previous,p.workspace);throw error;}
+  return settings;
+ }
  if(fs.existsSync(p.workspace))throw Error('桌面源码准备未完成。请保留该目录，查看日志后重试；不会覆盖已有文件。');
  const staging=path.join(p.home,'preparing-'+crypto.randomUUID());
  try{fs.cpSync(path.join(p.bundle,'app'),staging,{recursive:true,errorOnExist:true,force:false});
- fs.writeFileSync(path.join(staging,'.desktop-ready.json'),JSON.stringify({version:JSON.parse(fs.readFileSync(path.join(staging,'package.json'))).version,at:new Date().toISOString()}));
+ fs.writeFileSync(path.join(staging,'.desktop-ready.json'),JSON.stringify({version:JSON.parse(fs.readFileSync(path.join(staging,'package.json'))).version,at:new Date().toISOString(),baseline:digest(staging)}));
  fs.renameSync(staging,p.workspace);}catch(error){fs.rmSync(staging,{recursive:true,force:true});throw error;}return settings;
 }
 export async function start(p){
- const settings=prepare(p),live=await health(p.url);
- if(live){if(live.desktopInstance!==settings.instance)throw Error('桌面端口被其他时序空间占用，未连接或修改它');return {running:true,url:p.url};}
+ const marker=path.join(p.workspace,'.desktop-ready.json'),before=fs.existsSync(marker)?JSON.parse(fs.readFileSync(marker)).version:null;
+ const settings=prepare(p),live=await health(p.url),after=JSON.parse(fs.readFileSync(marker)).version;
+ if(live){if(live.desktopInstance!==settings.instance)throw Error('桌面端口被其他时序空间占用，未连接或修改它');if(before&&before!==after)await stop(p);else return {running:true,url:p.url};}
  fs.mkdirSync(p.data,{recursive:true});const control=path.join(p.home,'stop.json');if(fs.existsSync(control))fs.unlinkSync(control);
  const out=fs.openSync(path.join(p.data,'desktop-out.log'),'a'),err=fs.openSync(path.join(p.data,'desktop-error.log'),'a');
  // Do not inherit API credentials, database paths, or server settings from the launching shell.

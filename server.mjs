@@ -1,6 +1,8 @@
 import {registerDevelopment} from './development/routes.mjs';
 import {registerSync} from './sync-server.mjs';
 import {createAccounts,passwordMatches,passwordRecord} from './accounts.mjs';
+import {checkUpdates} from './updates.mjs';
+import {APP_VERSION} from './public/version.mjs';
 import {validateState} from './public/validate-state.mjs';
 import {assistantPrompt,applyAssistantOperations} from './assistant.mjs';
 import {runHarness,harnessStatus} from './harness/runtime.mjs';
@@ -69,6 +71,10 @@ app.get('/healthz', async(req, res) => {
   catch { return res.status(503).json({ app:'shixu', status:'database-unavailable' }); }
   res.json({ app:'shixu', status:'ok', database:db.driver, backupVersion:1, bootId:process.env.SHIXU_BOOT_ID, version:process.env.SHIXU_VERSION_ID||'source', desktopInstance:process.env.SHIXU_DESKTOP_INSTANCE, preview:process.env.SHIXU_PREVIEW==='1' });
 });
+app.get('/api/version',(req,res)=>res.json({version:APP_VERSION}));
+let updateCache;
+const updateCheck=async(req,res)=>{try{if(!updateCache||Date.now()-updateCache.at>300000)updateCache={at:Date.now(),data:await checkUpdates(APP_VERSION)};res.json(updateCache.data);}catch(e){res.status(502).json({error:e.message});}};
+app.get('/api/updates',updateCheck);
 const sessionCookie=process.env.SHIXU_PREVIEW==='1'?'shixu_preview':'session';
 const sessions=req=>accounts.session(req);
 const attempts = new Map();
@@ -96,6 +102,7 @@ app.use('/api',async(req,res,next)=>{
   req.account=session.account;req.authSession=session;accounts.run(session.account,next);
 });
 app.get('/api/me',(req,res)=>res.json({id:req.account.id,username:req.account.username,owner:req.account.owner,remember:req.authSession.remember}));
+app.post('/api/updates/check',updateCheck);
 app.get('/api/registration',async(req,res)=>{
   if(!req.account.owner)return res.status(403).json({error:'只有服务器管理员可以管理注册'});
   const p=await accounts.policy();res.json({...p,accounts:(await accounts.directory()).length});

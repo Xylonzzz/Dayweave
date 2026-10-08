@@ -51,6 +51,10 @@ test('legacy owner migration, invitation registration, session choices and cross
  assert.equal((await(await call('/api/state',bob.cookie)).json()).ideas.length,0);
  const capture=await(await call('/api/ai/capture',alice.cookie,{providerId:provider.id,text:'周四去加工，周五交自控作业'})).json();
  assert.equal((await call('/api/ai/capture/apply',bob.cookie,{id:capture.id,items:capture.items})).status,409,'other accounts cannot apply private drafts');
+ const personal=await(await call('/api/state',alice.cookie)).json();personal.settings.profile={school:'大学',major:'自动化',bio:'自己的资料',avatar:''};
+ assert.equal((await call('/api/state',alice.cookie,personal,'PUT')).status,200);
+ assert.equal((await(await call('/api/state',bob.cookie)).json()).settings.profile,undefined,'profiles remain private to their account');
+ personal.revision++;personal.settings.profile.avatar='data:image/svg+xml;base64,PHN2Zz4=';assert.equal((await call('/api/state',alice.cookie,personal,'PUT')).status,400);
  const sync=(route,body,token)=>fetch(origin+'/api/sync/v1'+route,{method:body===undefined?'GET':'POST',headers:{Origin:'http://localhost:3088','Content-Type':'application/json','X-Shixu-Sync':'1',...(token?{Authorization:'Bearer '+token}:{})},...(body!==undefined?{body:JSON.stringify(body)}:{})});
  const sa=await(await sync('/login',{username:'alice',password})).json(),sb=await(await sync('/login',{username:'bob',password})).json();
  assert.notEqual(sa.instanceId,sb.instanceId);assert.equal(sa.serverInstanceId,sb.serverInstanceId);

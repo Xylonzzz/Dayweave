@@ -615,7 +615,16 @@ test('invitation registration and optional automatic login on mobile',async({pag
   let cookie=(await page.context().cookies()).find(c=>c.name==='session');expect(cookie.expires).toBe(-1);
   await page.locator('.settings-nav').click();await expect(page.locator('#view')).toContainText(username);
   await expect(page.locator('#manage-registration')).toHaveCount(0);
+  await page.locator('#edit-profile').click();const profile=page.locator('#profile-form');
+  await profile.getByLabel('昵称').fill('小林');await profile.getByLabel('学校').fill('我的大学');await profile.getByLabel('专业 / 方向').fill('自动化');await profile.getByLabel('个人简介').fill('认真完成项目');
+  await profile.locator('#profile-avatar-file').setInputFiles('public/icon-192.png');await expect(profile.locator('#profile-avatar-preview img')).toBeVisible();
+  await profile.getByRole('button',{name:'保存个人资料'}).click();await expect(page.locator('#profile-name')).toHaveText('小林的空间');await expect(page.locator('#view')).toContainText('我的大学 · 自动化');
+  await page.route('**/api/updates',route=>route.fulfill({json:{current:'0.1.5',latest:'0.1.6',available:true,kind:'source',url:'https://github.com/Xylonzzz/Dayweave',installer:null}}));
+  await expect(page.locator('#view')).toContainText('当前页面版本 0.1.5');await page.locator('#check-updates').click();await expect(page.locator('#update-status')).toContainText('没有发布可下载的安装包');
+  await page.reload();await expect(page.locator('#profile-name')).toHaveText('小林的空间');
+  await expect(page.locator('#view .account-avatar img')).toBeVisible();
   await page.locator('#account-logout').click();await expect(page.locator('#login')).toBeVisible();
+  await page.locator('#login-form [name=username]').fill(username);
   await page.locator('#login-form [name=password]').fill('Friend-test-password-123');
   await page.locator('#login-form').getByLabel('自动登录（30 天）').check();await page.getByRole('button',{name:/进入我的空间/}).click();
   await expect(page.locator('#shell')).toBeVisible();

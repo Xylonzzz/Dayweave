@@ -15,3 +15,4 @@
 .preview-banner{position:sticky;top:0;z-index:1000;padding:12px 20px;background:#604614;color:#fff;text-align:center;font-size:16px;}
 
 .account-check{display:flex;align-items:center;gap:10px;margin:12px 0}.account-check input[type=checkbox]{width:18px;height:18px;margin:0;flex:none;accent-color:var(--accent)}
+.account-identity{display:flex;align-items:center;gap:18px;margin:18px 0;flex-wrap:wrap}.account-identity p{margin:6px 0}.account-avatar{display:grid;place-items:center;width:72px;height:72px;border-radius:24px;background:var(--accent);color:var(--bg);font-size:28px;overflow:hidden;flex-shrink:0}.account-avatar img,.avatar img{width:100%;height:100%;object-fit:cover}.avatar{overflow:hidden}.account-bio{white-space:pre-wrap;overflow-wrap:anywhere}#update-links{margin-top:12px}

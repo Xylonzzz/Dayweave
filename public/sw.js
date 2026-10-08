@@ -1,5 +1,5 @@
-const CACHE='shixu-shell-local-v17';
-const ASSETS=['/accounts-ui.mjs','/materials.css','/color-inputs.mjs','/auto-sync.mjs','/sync-ui.mjs','/sync-client.mjs','/sync-merge.mjs','/','/index.html','/app.js','/customize.mjs','/idea-bubbles.mjs','/idea-bubbles.css','/calendar.mjs','/workspace.css','/style.css','/tweaks.css','/appearance.css','/appearance.js','/portability.mjs','/quadrants.mjs','/reviews.mjs','/task-types.mjs','/local-store.mjs','/validate-state.mjs','/manifest.webmanifest','/icon.svg','/icon-192.png','/icon-512.png'];
+const CACHE='shixu-shell-local-v18';
+const ASSETS=['/accounts-ui.mjs','/profile.mjs','/version.mjs','/materials.css','/color-inputs.mjs','/auto-sync.mjs','/sync-ui.mjs','/sync-client.mjs','/sync-merge.mjs','/','/index.html','/app.js','/customize.mjs','/idea-bubbles.mjs','/idea-bubbles.css','/calendar.mjs','/workspace.css','/style.css','/tweaks.css','/appearance.css','/appearance.js','/portability.mjs','/quadrants.mjs','/reviews.mjs','/task-types.mjs','/local-store.mjs','/validate-state.mjs','/manifest.webmanifest','/icon.svg','/icon-192.png','/icon-512.png'];
 async function prepare(){const cache=await caches.open(CACHE);await cache.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'})));}
 self.addEventListener('install',event=>event.waitUntil(prepare().then(()=>self.skipWaiting())));
 self.addEventListener('message',event=>{if(event.data?.type==='prepare-offline')event.waitUntil(prepare().then(()=>event.ports[0]?.postMessage({ok:true}),()=>event.ports[0]?.postMessage({ok:false})));});

@@ -1,4 +1,5 @@
 import {validateTaskTypes} from './task-types.mjs';
+import {validateProfile} from './profile.mjs';
 import {validateReviews} from './reviews.mjs';
 const atChina=(date)=>new Date(date+'T00:00:00+08:00');
 const hhmm = v => typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
@@ -6,6 +7,7 @@ export function validateState(s) {
   if (!s || !s.settings || !['courses','tasks','ideas','blocks'].every(k => Array.isArray(s[k]) && s[k].length <= 3000)) throw Error('数据格式错误或条目过多');
   if (typeof s.settings.name !== 'string' || !s.settings.name.trim() || s.settings.name.length > 30) throw Error('称呼需为 1–30 个字符');
   s.reviews??=[];validateReviews(s.reviews);
+  if(s.settings.profile!=null)validateProfile(s.settings.profile);
   if(s.settings.navOrder!=null&&(!Array.isArray(s.settings.navOrder)||s.settings.navOrder.length>7||new Set(s.settings.navOrder).size!==s.settings.navOrder.length||s.settings.navOrder.some(k=>!['today','week','tasks','ideas','reviews','quadrants','assistant'].includes(k))))throw Error('导航顺序无效');
   if(s.settings.urgentHours!=null&&(!Number.isInteger(s.settings.urgentHours)||s.settings.urgentHours<1||s.settings.urgentHours>720))throw Error('紧急期限需为 1–720 小时');
   for(const t of s.tasks)if((t.important!=null&&typeof t.important!=='boolean')||(t.urgency!=null&&!['auto','urgent','not-urgent'].includes(t.urgency)))throw Error('四象限分类无效');

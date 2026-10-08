@@ -37,6 +37,8 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
  tray.on('click',reveal);tray.on('double-click',reveal);
  window.on('close',event=>{if(!quitting){event.preventDefault();window.hide();}});
  window.webContents.on('did-finish-load',()=>{void window.webContents.executeJavaScript(`(()=>{
+  document.documentElement.dataset.desktopVersion=${JSON.stringify(app.getVersion())};
+  const version=document.getElementById('desktop-version');if(version)version.textContent=' · 桌面窗口 '+document.documentElement.dataset.desktopVersion;
   if(document.getElementById('desktop-titlebar'))return;
   const style=document.createElement('style');style.textContent='body{padding-top:44px}.sidebar{top:44px;height:calc(100dvh - 44px)}#desktop-titlebar{position:fixed;inset:0 0 auto;height:44px;display:flex;align-items:center;padding:0 18px;gap:9px;z-index:9999;background:var(--bg,#f7f8f4);color:var(--muted,#6f8178);font:12px "Segoe UI","Microsoft YaHei",sans-serif;-webkit-app-region:drag;border-bottom:0}#desktop-titlebar img{width:21px;height:21px}';document.head.append(style);
   const bar=document.createElement('div');bar.id='desktop-titlebar';const image=document.createElement('img');image.src='/icon.svg';image.alt='';bar.append(image,document.createTextNode('时序 · 给重要的事留时间'));document.body.prepend(bar);
