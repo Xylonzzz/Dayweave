@@ -6,7 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 test('Windows installer verifies payload, creates real shortcuts, preserves modified files and user data', {skip:process.platform!=='win32'},t=>{
- const root=fs.mkdtempSync(path.join(os.tmpdir(),'shixu-install-'));
+ const root=fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(),'shixu-install-')));
  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
  const bundle=path.join(root,'bundle'),install=path.join(root,'programs'),desktop=path.join(root,'desktop'),menu=path.join(root,'menu');
  fs.mkdirSync(path.join(bundle,'desktop'),{recursive:true});
