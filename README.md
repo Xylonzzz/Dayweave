@@ -97,9 +97,13 @@ The `data/` directory contains your database and encryption keys and must stay o
 
 ## Windows 安装包 / Windows installer
 
+发行文件见 [Releases](https://github.com/Xylonzzz/Dayweave/releases)。维护者可以通过 GitHub Actions 从同一提交构建 Windows 安装包和 Harness 镜像，并先生成发布草稿；详见 [统一发布流程](docs/RELEASE_PIPELINE.md)。
+
+Downloads are available in [Releases](https://github.com/Xylonzzz/Dayweave/releases). Maintainers can build the Windows installer and Harness image from one commit through GitHub Actions, then review a draft release. See the [release workflow](docs/RELEASE_PIPELINE.md).
+
 Windows 桌面版基于 Electron，安装包包含运行环境，普通使用不需要单独安装 Node.js。仓库中的源码不等于已发布的安装包；构建步骤如下：
 
-The Electron desktop installer bundles its runtime, so normal use does not require a separate Node.js installation. Source availability does not imply a published binary release. To build on Windows:
+The Electron desktop installer bundles its runtime, so normal use does not require a separate Node.js installation. To build on Windows:
 
 ```bash
 npm ci

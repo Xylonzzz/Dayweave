@@ -1,0 +1,166 @@
+name: Build release packages
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or tag to build (publishing requires a vX.Y.Z tag)
+        required: true
+        default: main
+        type: string
+      publish_draft:
+        description: Create a draft release after all checks pass
+        default: false
+        type: boolean
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.event.inputs.ref || github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      commit: ${{ steps.version.outputs.commit }}
+      publish: ${{ steps.mode.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Decide build or draft mode
+        id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          REQUESTED_DRAFT: ${{ github.event.inputs.publish_draft }}
+          REQUESTED_REF: ${{ github.event.inputs.ref || github.ref_name }}
+        run: |
+          if [[ "$EVENT" == push || "$REQUESTED_DRAFT" == true ]]; then
+            echo 'publish=true' >> "$GITHUB_OUTPUT"
+            node release-tools.mjs check "$REQUESTED_REF"
+          else
+            echo 'publish=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Check source and UI versions
+        id: version
+        run: npm run release:check
+      - run: npm run check:public -- --history
+      - name: Refuse to replace an existing release
+        if: steps.mode.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: v${{ steps.version.outputs.version }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[].tag_name' > release-tags.txt
+          if grep -Fxq "$RELEASE_TAG" release-tags.txt; then
+            echo 'A release already exists for this version. Use a new version.' >&2
+            exit 1
+          fi
+  windows:
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:ui
+      - run: npm run build:windows
+      - run: npm run build:installer
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Verify packaged Electron window with isolated data
+        shell: pwsh
+        run: |
+          $packageInfo = Get-Content -Raw dist/latest-installer.json | ConvertFrom-Json
+          $env:SHIXU_WINDOW_EXE = Join-Path $packageInfo.unpacked '时序.exe'
+          node tests/window-smoke.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - run: node release-tools.mjs stage-installer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+  harness:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+      - name: Build pinned engine with no personal data
+        env:
+          APP_VERSION: ${{ needs.validate.outputs.version }}
+        run: docker build --build-arg NODE_IMAGE=node:24-bookworm-slim -f deploy/Dockerfile.harness -t "dayweave:harness-$APP_VERSION" .
+      - name: Test actual engine with a mock model API
+        env:
+          APP_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          docker run --rm --memory=1g --cpus=2 \
+            -v "$PWD/tests:/app/tests:ro" --entrypoint node \
+            "dayweave:harness-$APP_VERSION" --test tests/harness.test.mjs
+      - name: Export image and checksum
+        env:
+          APP_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/release-assets
+          docker save "dayweave:harness-$APP_VERSION" | gzip > "dist/release-assets/dayweave-harness-$APP_VERSION.tar.gz"
+          cd dist/release-assets
+          sha256sum "dayweave-harness-$APP_VERSION.tar.gz" > "dayweave-harness-$APP_VERSION.tar.gz.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: harness-image
+          path: dist/release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+  assemble:
+    needs: [validate, windows, harness]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*'
+          path: dist/release-assets
+          merge-multiple: true
+      - run: node release-tools.mjs verify-assets
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle
+          path: dist/release-assets/*
+          retention-days: 7
+          compression-level: 0
+      - name: Create reviewable draft (never overwrite a release)
+        if: needs.validate.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: v${{ needs.validate.outputs.version }}
+          RELEASE_COMMIT: ${{ needs.validate.outputs.commit }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/release-assets/* \
+            --draft --verify-tag --target "$RELEASE_COMMIT" \
+            --title "Dayweave $RELEASE_TAG" --generate-notes

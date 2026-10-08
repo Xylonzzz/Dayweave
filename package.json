@@ -12,7 +12,9 @@
     "build:windows": "node desktop/build.mjs",
     "build:installer": "node desktop/build-installer.mjs",
     "check:server": "node server-doctor.mjs",
-    "check:public": "node check-public.mjs"
+    "check:public": "node check-public.mjs",
+    "release:check": "node release-tools.mjs check",
+    "release:prepare": "node release-tools.mjs prepare"
   },
   "engines": {
     "node": ">=22.2.0"
