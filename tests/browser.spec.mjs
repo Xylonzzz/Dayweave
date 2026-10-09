@@ -357,7 +357,14 @@ test('assistant projects and conversations persist across reload with provenance
  await page.getByLabel('项目名称',{exact:true}).fill('数电学习');
  await page.getByLabel('项目说明',{exact:true}).fill('先帮我理解概念，再整理作业。');
  await page.getByRole('button',{name:'保存项目',exact:true}).click();
+ await page.route('**/api/conversations',async route=>{
+  if(route.request().method()==='POST'&&route.request().postDataJSON()?.action==='createThread')await new Promise(resolve=>setTimeout(resolve,700));
+  await route.continue();
+ });
  await page.getByRole('button',{name:'＋ 新建对话',exact:true}).click();
+ await expect(page.getByRole('button',{name:'正在保存对话…',exact:true})).toBeDisabled();
+ await expect(page.getByLabel('发给时间管家')).toBeDisabled();
+ await expect(page.getByRole('button',{name:'发送并执行 ↗',exact:true})).toBeEnabled();
  await page.getByLabel('发给时间管家').fill('数电作业9.15 23.59分截止');
  await page.getByRole('button',{name:'发送并执行 ↗',exact:true}).click();
  await expect(page.locator('.assistant-log')).toContainText('推断：所属项目根据对话暂定');
