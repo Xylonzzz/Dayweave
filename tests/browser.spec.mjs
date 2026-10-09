@@ -8,6 +8,20 @@ test.beforeAll(async()=>{
   throw Error('UI test server did not start');
 });
 test.afterAll(()=>server?.kill());
+
+async function expectDeadlineGap(cards){
+ await expect.poll(()=>cards.evaluateAll(es=>{
+  if(es.length!==2)return -1;
+  const a=es[0].getBoundingClientRect(),b=es[1].getBoundingClientRect();return b.top-a.bottom;
+ })).toBeGreaterThanOrEqual(5);
+}
+async function ensureAITestFixture(page,task=false){
+ await expect(page.locator('#nav')).toBeVisible();let changed=false;
+ const providers=await(await page.request.get('/api/providers')).json();
+ if(!providers.length){expect((await page.request.post('/api/providers',{data:{name:'Isolated UI fixture',baseUrl:'https://example.com/v1',model:'test',format:'openai',apiKey:'test-fixture-only'}})).ok()).toBe(true);changed=true;}
+ if(task){const state=await(await page.request.get('/api/state')).json();if(!state.tasks.length){state.tasks.push({id:'quadrant-fixture',title:'测试作业',kind:'homework',status:'todo',minutes:60,due:new Date(Date.now()+86400000).toISOString()});expect((await page.request.put('/api/state',{data:state})).ok()).toBe(true);changed=true;}}
+ if(changed){await page.reload();await expect(page.locator('#nav')).toBeVisible();}
+}
 test('desktop student flow and mobile layout',async({page})=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/');
@@ -174,7 +188,7 @@ test('calendar fits viewport, remembers sizing, and separates Sunday deadlines',
   const box=await page.locator('.week-scroll').boundingBox();expect(box.y+box.height).toBeLessThanOrEqual(768-20);
   expect(await page.locator('.week-scroll').evaluate(e=>e.scrollWidth<=e.clientWidth+1)).toBe(true);
   const cards=page.locator('.day-deadlines').last().locator('.deadline-card');await expect(cards).toHaveCount(2);
-  const a=await cards.nth(0).boundingBox(), b=await cards.nth(1).boundingBox();expect(b.y).toBeGreaterThanOrEqual(a.y+a.height+5);
+  await expectDeadlineGap(cards);
   expect(await cards.evaluateAll(es=>es.every(e=>e.scrollHeight<=e.clientHeight+1))).toBe(true);
   await cards.nth(1).click();await expect(page.getByLabel('任务名称')).toHaveValue('项目阶段总结报告提交截止');await page.getByRole('button',{name:'关闭',exact:true}).click();
   await page.locator('[name=hour]').fill('48');await page.locator('[name=hour]').dispatchEvent('change');
@@ -187,13 +201,14 @@ test('calendar fits viewport, remembers sizing, and separates Sunday deadlines',
   await page.screenshot({path:'test-output/calendar-sized-desktop.png'});
   await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await cards.nth(1).scrollIntoViewIfNeeded();
-  const mobileA=await cards.nth(0).boundingBox(),mobileB=await cards.nth(1).boundingBox();expect(mobileB.y).toBeGreaterThanOrEqual(mobileA.y+mobileA.height+5);
+  await expectDeadlineGap(cards);
   await page.screenshot({path:'test-output/calendar-sized-mobile.png'});
 });
 
 
 test('review daily weekly monthly snapshots and optional AI persist independently',async({page})=>{
  await page.goto('/');await page.getByRole('textbox',{name:'密码',exact:true}).fill('UI-test-password-123');await page.getByRole('button',{name:/进入我的空间/}).click();
+ await ensureAITestFixture(page);
  await page.locator('nav [data-page="reviews"]').click();
  for(const kind of ['day','week','month']){
  await page.getByRole('button',{name:'＋ 开始复盘'}).click();await page.getByLabel('复盘周期').selectOption(kind);await page.getByRole('button',{name:'生成本期汇总'}).click();
@@ -226,7 +241,7 @@ test('quadrants share tasks, drag and mobile move persist with automatic reset',
 });
 
 test('AI quadrant preview requires selection and rejects stale application',async({page})=>{
- await page.goto('/');await page.getByRole('textbox',{name:'密码',exact:true}).fill('UI-test-password-123');await page.getByRole('button',{name:/进入我的空间/}).click();await page.locator('nav [data-page="quadrants"]').click();
+ await page.goto('/');await page.getByRole('textbox',{name:'密码',exact:true}).fill('UI-test-password-123');await page.getByRole('button',{name:/进入我的空间/}).click();await ensureAITestFixture(page,true);await page.locator('nav [data-page="quadrants"]').click();
  const baseline=await(await page.request.get('/api/state')).json();
  await page.getByRole('button',{name:'✦ AI 分类建议'}).click();await page.getByRole('button',{name:'生成分类建议'}).click();await expect(page.locator('#quadrant-ai-preview')).toBeVisible();
  expect((await(await page.request.get('/api/state')).json()).revision).toBe(baseline.revision);
