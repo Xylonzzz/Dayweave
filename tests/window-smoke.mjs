@@ -79,6 +79,12 @@ try{
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('shixu-idea-bubbles')).material),'paper');
  }
  console.log('PASS: independent Electron window, real login, sandbox enabled, Node unavailable to pages, login and browser data persist after relaunch.');
+}catch(error){
+ if(desktop){try{console.error('Window diagnostic:',await desktop.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().map(w=>({url:w.webContents.getURL(),title:w.getTitle()}))));}catch{}}
+ for(const name of ['desktop-error.log','desktop-out.log','server-error.log','server-out.log']){
+  const file=path.join(profile,'data',name);if(fs.existsSync(file))console.error(name,fs.readFileSync(file,'utf8').slice(-3000));
+ }
+ throw error;
 }finally{
  stop();await desktop?.close();
 }
