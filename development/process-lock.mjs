@@ -7,6 +7,10 @@ function identity(pid, includeCommand = false) {
   if (!Number.isSafeInteger(pid) || pid < 1) return null;
   try { process.kill(pid, 0); } catch (error) { if (error.code === 'ESRCH') return null; throw error; }
   if (process.platform === 'win32') {
+    if(process.env.SHIXU_PROCESS_INFO){
+      const output=execFileSync(process.env.SHIXU_PROCESS_INFO,[String(pid),...(includeCommand?['--command']:[])],{encoding:'utf8',windowsHide:true,timeout:30000}).trim();
+      return output?JSON.parse(output):null;
+    }
     // New locks need only native creation time, rounded to WMI's microsecond precision
     // so existing live owners remain protected. WMI may be unavailable or cold.
     const query = includeCommand

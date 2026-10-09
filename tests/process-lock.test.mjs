@@ -30,6 +30,9 @@ test('real Windows startup identifies its own process with only desktop environm
  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'shixu-native-lock-'));
  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
  const env={};for(const name of ['SystemRoot','WINDIR','PATH','TEMP','TMP','USERPROFILE','HOME','APPDATA','LOCALAPPDATA','ProgramFiles'])if(process.env[name])env[name]=process.env[name];
+ const helper=path.join(folder,'ProcessInfo.exe'),compiler=path.join(process.env.WINDIR,'Microsoft.NET/Framework64/v4.0.30319/csc.exe');
+ const built=spawnSync(compiler,['/nologo','/target:exe','/platform:x64','/reference:System.Web.Extensions.dll','/reference:System.Management.dll','/out:'+helper,path.resolve('desktop/ProcessInfo.cs')],{encoding:'utf8',windowsHide:true});assert.equal(built.status,0,built.stdout+built.stderr);
+ env.SHIXU_PROCESS_INFO=helper;
  const moduleURL=pathToFileURL(path.resolve('development/process-lock.mjs')).href;
  const source=`import fs from 'node:fs'; import assert from 'node:assert/strict'; import {acquireProcessLock} from ${JSON.stringify(moduleURL)}; const file=${JSON.stringify(path.join(folder,'lock'))}; const release=acquireProcessLock(file,'fixture.mjs'); assert.match(JSON.parse(fs.readFileSync(file)).started,/0$/); assert.throws(()=>acquireProcessLock(file,'fixture.mjs'),/已运行/); release(); console.log('native lock OK');`;
  const r=spawnSync(process.execPath,['--input-type=module','-e',source],{env,encoding:'utf8',windowsHide:true,timeout:40000});

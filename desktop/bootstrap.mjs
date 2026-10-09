@@ -45,6 +45,7 @@ export async function start(p){
  // Do not inherit API credentials, database paths, or server settings from the launching shell.
  const env={};for(const name of ['SystemRoot','WINDIR','PATH','TEMP','TMP','USERPROFILE','HOME','APPDATA','LOCALAPPDATA','ProgramFiles'])if(process.env[name])env[name]=process.env[name];
  Object.assign(env,{PORT:String(p.port),HOST:'127.0.0.1',PUBLIC_ORIGIN:p.url,DATA_DIR:p.data,SHIXU_DESKTOP_INSTANCE:settings.instance,SHIXU_CONTROL_FILE:control,SHIXU_CONTROL_TOKEN:settings.token});
+ const processInfo=path.join(p.bundle,'runtime/ProcessInfo.exe');if(fs.existsSync(processInfo))env.SHIXU_PROCESS_INFO=processInfo;
  const child=spawn(process.execPath,[path.join(p.workspace,'development/supervisor.mjs')],{cwd:p.workspace,env,windowsHide:true,detached:true,stdio:['ignore',out,err]});let error;child.once('error',e=>{error=e;});child.unref();fs.closeSync(out);fs.closeSync(err);
  const deadline=Date.now()+120000;
  while(Date.now()<deadline){if(error)throw error;const result=await health(p.url);if(result?.desktopInstance===settings.instance)return {running:true,url:p.url};await new Promise(r=>setTimeout(r,350));}

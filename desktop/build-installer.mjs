@@ -8,6 +8,7 @@ const source=JSON.parse(fs.readFileSync(path.join(root,'dist/latest.json'))).out
 const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json')));
 const sourceDigest=digest(root);
 const old=JSON.parse(fs.readFileSync(path.join(source,'app/package.json')));
+if(!fs.existsSync(path.join(source,'runtime/ProcessInfo.exe')))throw Error('运行环境缺少进程检测程序，请先运行 build:windows');
 if(JSON.stringify(pkg.dependencies)!==JSON.stringify(old.dependencies)||JSON.stringify(pkg.overrides)!==JSON.stringify(old.overrides))throw Error('生产依赖已变化，请先运行 build:windows');
 const staging=path.join(root,'dist','window-build-'+Date.now()),payload=path.join(staging,'payload'),app=path.join(staging,'shell');
 fs.mkdirSync(payload,{recursive:true});fs.mkdirSync(app);
