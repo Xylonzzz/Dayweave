@@ -3,12 +3,17 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
-function identity(pid) {
+function identity(pid, includeCommand = false) {
   if (!Number.isSafeInteger(pid) || pid < 1) return null;
   try { process.kill(pid, 0); } catch (error) { if (error.code === 'ESRCH') return null; throw error; }
   if (process.platform === 'win32') {
-    const command = `$p=Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}'; if($p){[pscustomobject]@{started=$p.CreationDate.ToUniversalTime().Ticks.ToString();executable=$p.ExecutablePath;command=$p.CommandLine}|ConvertTo-Json -Compress}`;
-    const output = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8', windowsHide: true, timeout: 10000 }).trim();
+    // New locks need only native creation time, rounded to WMI's microsecond precision
+    // so existing live owners remain protected. WMI may be unavailable or cold.
+    const query = includeCommand
+      ? `$p=Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}'; if($p){[pscustomobject]@{started=$p.CreationDate.ToUniversalTime().Ticks.ToString();command=$p.CommandLine}|ConvertTo-Json -Compress}`
+      : `$p=[Diagnostics.Process]::GetProcessById(${pid}); $ticks=$p.StartTime.ToUniversalTime().Ticks; [pscustomobject]@{started=($ticks-($ticks%10)).ToString();command=$null}|ConvertTo-Json -Compress`;
+    const command = `[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); ${query}`;
+    const output = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8', windowsHide: true, timeout: 30000 }).trim();
     return output ? JSON.parse(output) : null;
   }
   if (process.platform === 'linux') {
@@ -26,7 +31,7 @@ export function acquireProcessLock(file, script, probe = identity) {
     const original = fs.readFileSync(file, 'utf8');
     const record = JSON.parse(original);
     const pid = typeof record === 'number' ? record : record.pid;
-    const owner = probe(pid);
+    const owner = probe(pid, typeof record === 'number');
     if (owner) {
       const sameStart = typeof record === 'object' && record.started && owner.started && record.started === owner.started;
       const command = owner.command?.replaceAll('\\', '/').toLowerCase();
