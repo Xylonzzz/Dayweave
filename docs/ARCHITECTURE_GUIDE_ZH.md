@@ -205,7 +205,7 @@ Harness 能调用课程查询、业务修改、模型配置信息、公开网页
 | Service Worker / PWA | 缓存网页资源，支持离线页面和 Android 添加到主屏幕。当前没有发布 Android APK。 |
 | Electron 44.5.1 | Chromium 页面内核加桌面能力，提供独立窗口、托盘、菜单等。 |
 | electron-builder 26.15.3 / NSIS | 生成 Windows 安装 EXE。 |
-| C# / .NET 编译器 | 较早的便携启动器 `desktop/Shixu.cs`；不是核心业务后端语言。 |
+| C# / .NET 编译器 | 便携启动器 `desktop/Shixu.cs`、Unicode 快捷方式 `desktop/ShellLink.cs` 和随包进程识别助手 `desktop/ProcessInfo.cs`；不是核心业务后端语言。 |
 | PowerShell / Bash | Windows 启动与打包、Linux 下载及部署脚本。 |
 | Git / GitHub | 版本记录、源码托管和 Releases 下载发布。 |
 | Docker / Dockerfile | 固定运行环境、制作服务器镜像、运行 AI 定制测试环境。 |

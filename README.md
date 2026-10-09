@@ -170,9 +170,9 @@ On Alibaba Cloud Linux 3: open ports 80/443, install Docker/Nginx, verify and lo
 
 ## 技术栈与目录 / Stack and source layout
 
-主要开发语言是 JavaScript（ES Modules），页面使用 HTML 和 CSS；部署脚本使用 Bash/PowerShell。Node.js 提供运行环境，npm 安装依赖，Git 管理源码，GitHub 发布代码与安装包。electron-builder + NSIS 构建 Windows 安装包；Node.js Test Runner 和 Playwright 验证后端与界面。Docker 用于云端封装和 AI 定制的隔离测试，日常本机使用不需要安装它。
+主要开发语言是 JavaScript（ES Modules），页面使用 HTML 和 CSS；部署脚本使用 Bash/PowerShell，C# 用于 Windows 启动器、快捷方式和进程识别助手。Node.js 提供运行环境，npm 安装依赖，Git 管理源码，GitHub 发布代码与安装包。electron-builder + NSIS 构建 Windows 安装包；Node.js Test Runner 和 Playwright 验证后端与界面。Docker 用于云端封装和 AI 定制的隔离测试，日常本机使用不需要安装它。
 
-The primary language is JavaScript (ES Modules), with HTML/CSS and Bash/PowerShell deployment scripts. Node.js/npm run the app and install dependencies; Git/GitHub manage source and releases. electron-builder/NSIS package Windows installers, and Node.js Test Runner/Playwright verify the backend and UI. Docker packages cloud deployments and isolates customization tests.
+The primary language is JavaScript (ES Modules), with HTML/CSS and Bash/PowerShell deployment scripts. Small C# helpers support the Windows launcher, shortcuts, and process identification. Node.js/npm run the app and install dependencies; Git/GitHub manage source and releases. electron-builder/NSIS package Windows installers, and Node.js Test Runner/Playwright verify the backend and UI. Docker packages cloud deployments and isolates customization tests.
 
 | 目录 / Path | 用途 / Purpose |
 | --- | --- |
